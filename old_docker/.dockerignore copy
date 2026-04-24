@@ -1,0 +1,8 @@
+.git
+study/
+ros2/
+# Ignore the specific build folders
+OrbbecSDK/OrbbecSDK/build/
+python/pyorbbecsdk/build/
+**/*.odt
+**/*.bag

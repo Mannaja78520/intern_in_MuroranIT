@@ -1,0 +1,14 @@
+.git
+study/
+ros2/
+# Ignore the specific build folders
+OrbbecSDK/OrbbecSDK/build/
+python/pyorbbecsdk/build/
+**/*.odt
+**/*.bag
+**/*.mp4
+**/*.MP4
+**/*.jpg
+**/*.png
+**/*.jpeg
+intern_program/train_model
