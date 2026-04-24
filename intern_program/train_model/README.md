@@ -1,5 +1,5 @@
 # First of all if need to run this all file plese install roboflow and ultralytic
-pip install -U roboflow ultralytics
+    pip install -U roboflow ultralytics
 #
 
 # If need to train own model
