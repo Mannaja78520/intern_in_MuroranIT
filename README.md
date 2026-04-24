@@ -41,28 +41,24 @@ docker system prune -a --volumes -f
 
 
 
-# หยุด container ทั้งหมด
+# stop all container
 docker stop $(docker ps -aq) 2>/dev/null
 
-# ลบ container ทั้งหมด
+# delete all container
 docker rm $(docker ps -aq) 2>/dev/null
 
-# ลบ image ทั้งหมด
+# delete all docker images
 docker rmi $(docker images -q) 2>/dev/null
 
-# ลบ build cache
+# delete build cache
 docker builder prune -a -f
 
-# ลบทุกอย่าง (network + volume)
+# delete all (network + volume)
 docker system prune -a --volumes -f
-
-
 
 docker ps -a
 docker images
 docker volume ls
-
-
 
 # Build (no cache)
 docker build --no-cache -t intern-muroran-it-app:latest .
