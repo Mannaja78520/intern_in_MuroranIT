@@ -54,6 +54,9 @@ try:
         ir1_vis = cv2.cvtColor(ir1, cv2.COLOR_GRAY2BGR)
         ir2_vis = cv2.cvtColor(ir2, cv2.COLOR_GRAY2BGR)
 
+        color = cv2.resize(color, (320, 240))
+        ir1_vis = cv2.resize(ir1_vis, (320, 240))
+        ir2_vis = cv2.resize(ir2_vis, (320, 240))
         combined = np.hstack((color, ir1_vis, ir2_vis))
         cv2.imshow("RGB | IR1 | IR2", combined)
 
