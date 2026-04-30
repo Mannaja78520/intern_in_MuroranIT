@@ -1,6 +1,7 @@
 import pyrealsense2 as rs
 import numpy as np
 import cv2
+from datetime import datetime
 
 WIDTH = 640
 HEIGHT = 480
@@ -19,10 +20,11 @@ depth_sensor = profile.get_device().first_depth_sensor()
 depth_sensor.set_option(rs.option.emitter_enabled, 0)
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-rgb_out = cv2.VideoWriter('rgb.avi', fourcc, FPS, (WIDTH, HEIGHT))
-ir1_out = cv2.VideoWriter('ir1.avi', fourcc, FPS, (WIDTH, HEIGHT), False)
-ir2_out = cv2.VideoWriter('ir2.avi', fourcc, FPS, (WIDTH, HEIGHT), False)
+rgb_out = cv2.VideoWriter(f'rgb_{timestamp}.avi', fourcc, FPS, (WIDTH, HEIGHT))
+ir1_out = cv2.VideoWriter(f'ir1_{timestamp}.avi', fourcc, FPS, (WIDTH, HEIGHT), False)
+ir2_out = cv2.VideoWriter(f'ir2_{timestamp}.avi', fourcc, FPS, (WIDTH, HEIGHT), False)
 
 print("🎬 Recording RGB + IR1 + IR2... press q to stop")
 
