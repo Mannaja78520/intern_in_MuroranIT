@@ -19,5 +19,11 @@ intern_program/train_model/realsense/.claude
 intern_program/train_model/realsense/muroranit_*
 intern_program/train_model/realsense/predict_*/
 intern_program/train_model/realsense/runs/
+intern_program/realsense/*.mp4
+intern_program/realsense/*.MP4
+intern_program/realsense/*.avi
+intern_program/realsense/**/*.mp4
+intern_program/realsense/**/*.MP4
+intern_program/realsense/**/*.avi
 
 

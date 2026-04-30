@@ -6,8 +6,8 @@ import argparse
 from pathlib import Path
 from ultralytics import YOLO
 
-MODEL_PATH = "realsense_merged.pt"
-CONF_THRES = 0.85
+MODEL_PATH = "/home/mannaja/intern_in_MuroranIT/intern_program/models/realsense_merged.pt"
+CONF_THRES = 0.8
 
 
 def predict_video(video_path: str, conf: float = CONF_THRES, show: bool = True):

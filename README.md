@@ -1,5 +1,7 @@
 # intern_in_MuroranIT
 
+## If you need to use something in this floder it have README.md in the separate floder
+
 ## Group docker to use it
 sudo usermod -aG docker cv
 newgrp docker
@@ -41,24 +43,24 @@ docker system prune -a --volumes -f
 
 
 
-# stop all container
+## stop all container
 docker stop $(docker ps -aq) 2>/dev/null
 
-# delete all container
+## delete all container
 docker rm $(docker ps -aq) 2>/dev/null
 
-# delete all docker images
+## delete all docker images
 docker rmi $(docker images -q) 2>/dev/null
 
-# delete build cache
+## delete build cache
 docker builder prune -a -f
 
-# delete all (network + volume)
+## delete all (network + volume)
 docker system prune -a --volumes -f
 
 docker ps -a
 docker images
 docker volume ls
 
-# Build (no cache)
+## Build (no cache)
 docker build --no-cache -t intern-muroran-it-app:latest .

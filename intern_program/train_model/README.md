@@ -2,6 +2,12 @@
     pip install -U roboflow ultralytics
 #
 
+# All of the models are labels in roboflow
+    https://app.roboflow.com/m-k-8ngn3/muroranit_t-hook_rgb/3
+    https://app.roboflow.com/m-k-8ngn3/muroranit_t-hook_ir/1
+    https://app.roboflow.com/m-k-8ngn3/muroranit_t-hook_merged_ir_rgb-rms9o/1
+#
+
 # If need to train own model
     1.capture all of the pictures that you can see the thing which you need to train.
     2.label it in roboflow (only the thing that you need to train).
@@ -9,7 +15,7 @@
     4.go to the directory which have the download file from download source code in roboflow
     5.run the download file from roboflow
     6.when you got all of the file run edit the train model file use the name of your project front of the data.yaml like:
-        muroranit_t-hook_combined/data.yaml
+        muroranit_t-hook_merged_ir_rgb-1/data.yaml
     7.wait until it finished the trainnig.
     8.your model it in the floder runs/train/weights
     9.use that model in the another program.
