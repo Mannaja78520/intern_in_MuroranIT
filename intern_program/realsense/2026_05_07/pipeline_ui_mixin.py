@@ -9,7 +9,7 @@ from tkinter import ttk
 
 from config import ALL_PROC_OPS, OP_GROUPS, group_for_op, params_for_op
 
-# Selectable OVERLAY paint colours — name → BGR tuple (used by _process).
+# Selectable OVERLAY paint colours - name -> BGR tuple (used by _process).
 OVERLAY_COLORS = {
     "red":     (  0,   0, 255),
     "green":   (  0, 255,   0),
@@ -175,14 +175,39 @@ class PipelineUIMixin:
     # ------------------------------------------------------------------
     # Per-step OVERLAY extras (color1, color2, optional 2nd mask source)
     # ------------------------------------------------------------------
+    def _yolo_state_for(self, step_tuple):
+        """Per-step YOLO-add-on state. Lazy-create.
+
+        Fields:
+          yolo_en   - toggle YOLO inference on this step
+          yolo_src  - RAW source view to feed YOLO
+          yolo_mode - "box_only" (just draws boxes, no effect on mask),
+                      "focus"    (running mask = running AND boxes),
+                      "subtract" (running mask = running AND NOT boxes)
+        """
+        if not hasattr(self, "_yolo_state"):
+            self._yolo_state = {}
+        key = id(step_tuple)
+        st = self._yolo_state.get(key)
+        if st is None:
+            st = {
+                "yolo_en":   tk.BooleanVar(value=False),
+                "yolo_src":  tk.StringVar(value="rgb_raw"),
+                "yolo_mode": tk.StringVar(value="box_only"),
+            }
+            for v in st.values():
+                v.trace_add("write", lambda *a: self._refresh())
+            self._yolo_state[key] = st
+        return st
+
     def _overlay_state_for(self, step_tuple):
         """Return the per-step OVERLAY state dict (lazy-create).
 
         Fields:
-          color1    — paint colour for Mask 1 (running mask)
-          color2    — paint colour for Mask 2
-          mask2_src — optional 2nd-mask view ("none" disables)
-          base_src  — BGR image painted on ("none" = black bg)
+          color1    - paint colour for Mask 1 (running mask)
+          color2    - paint colour for Mask 2
+          mask2_src - optional 2nd-mask view ("none" disables)
+          base_src  - BGR image painted on ("none" = black bg)
         """
         if not hasattr(self, "_overlay_state"):
             self._overlay_state = {}
@@ -196,7 +221,7 @@ class PipelineUIMixin:
                 "base_src":  tk.StringVar(value="rgb_raw"),
             }
             # Toggling mask2/base between "none" and a view changes the
-            # composite tile count → rebuild the All-Masks window so
+            # composite tile count -> rebuild the All-Masks window so
             # the thumbnail width matches the new count.
             for _name, _v in st.items():
                 if _name in ("mask2_src", "base_src"):
@@ -253,7 +278,7 @@ class PipelineUIMixin:
         N, Dir, KX, KY, T, combine_en/op/src) immediately re-runs the
         pipeline and updates the All-Masks flowchart labels."""
         # Combine vars also need a flowchart rebuild because they change
-        # whether the step shows the image1/⊕op/image2 sub-row.
+        # whether the step shows the image1/+op/image2 sub-row.
         en, op, n, dir_, kx, ky, th, cen, cop, csr = step_tuple
         for v in (en, op, n, dir_, kx, ky, th):
             v.trace_add("write", lambda *a: self._refresh())
@@ -312,7 +337,7 @@ class PipelineUIMixin:
         parent_frame._add_btn = btn
 
     def _rebuild_pipeline_ui(self, parent_frame, pipeline_list):
-        """Full rebuild — used on remove / move where indexes shift."""
+        """Full rebuild - used on remove / move where indexes shift."""
         for w in parent_frame.winfo_children():
             w.destroy()
         parent_frame._add_btn = None
@@ -331,13 +356,13 @@ class PipelineUIMixin:
         # Reorder / remove buttons
         btn_row = tk.Frame(sf)
         btn_row.pack(anchor="ne", padx=1, pady=1)
-        tk.Button(btn_row, text="↑", font=("Arial", 7), width=2, relief="flat",
+        tk.Button(btn_row, text="^", font=("Arial", 7), width=2, relief="flat",
                   command=lambda pl=pipeline_list, i=idx, pf=parent_frame:
                       self._on_move_step(pf, pl, i, -1)).pack(side="left")
-        tk.Button(btn_row, text="↓", font=("Arial", 7), width=2, relief="flat",
+        tk.Button(btn_row, text="v", font=("Arial", 7), width=2, relief="flat",
                   command=lambda pl=pipeline_list, i=idx, pf=parent_frame:
                       self._on_move_step(pf, pl, i, +1)).pack(side="left")
-        tk.Button(btn_row, text="×", font=("Arial", 8, "bold"), fg="#ff4444",
+        tk.Button(btn_row, text="x", font=("Arial", 8, "bold"), fg="#ff4444",
                   width=2, relief="flat",
                   command=lambda pl=pipeline_list, i=idx, pf=parent_frame:
                       self._on_remove_step(pf, pl, i)).pack(side="left")
@@ -345,10 +370,10 @@ class PipelineUIMixin:
         tk.Checkbutton(sf, text="Enable", variable=en_var,
                        font=("Arial", 8)).pack(anchor="w")
 
-        # ── Step TYPE radio: Morph (apply Op) vs Combine (bitwise) ────
+        # -- Step TYPE radio: Morph (apply Op) vs Combine (bitwise) ----
         # comb_en_var doubles as the type flag:
-        #   False → Morph step (Op + kernel applied to running mask)
-        #   True  → Combine step (running ⟨AND/OR/XOR⟩ source, no Op)
+        #   False -> Morph step (Op + kernel applied to running mask)
+        #   True  -> Combine step (running <AND/OR/XOR> source, no Op)
         type_row = tk.Frame(sf)
         type_row.pack(fill="x", pady=1)
         tk.Label(type_row, text="Type:", font=("Arial", 8, "bold"),
@@ -370,7 +395,7 @@ class PipelineUIMixin:
                      width=4, anchor="w").pack(side="left")
             wfn(r)
 
-        # ── Morph fields: Op (Group → Op), N, Dir, KX, KY, T ─────────
+        # -- Morph fields: Op (Group -> Op), N, Dir, KX, KY, T ---------
         morph_fr = tk.Frame(sf)
         morph_fr.pack(fill="x")
 
@@ -411,7 +436,7 @@ class PipelineUIMixin:
         _op_row(op_r)
         # Param rows are created up-front but only shown for the
         # ops that actually use them. The labels also update per op
-        # (e.g. KX → "Kernel size" for GaussBlur, "Low threshold"
+        # (e.g. KX -> "Kernel size" for GaussBlur, "Low threshold"
         # for Canny, "Diameter" for BilateralBlur, etc.).
         param_rows = {}
 
@@ -439,6 +464,14 @@ class PipelineUIMixin:
         _param_row("KY",  "KY",           ky_var,    lo=1, hi=999)
         _param_row("T",   "Threshold",    thresh_var, lo=0, hi=255)
 
+        # One-line description of what THIS op actually does. Updates
+        # whenever op_var changes.
+        op_desc_lbl = tk.Label(morph_fr, text="",
+                               font=("Arial", 7, "italic"),
+                               fg="#aaccaa", anchor="w",
+                               wraplength=240, justify="left")
+        op_desc_lbl.pack(fill="x", padx=4, pady=(2, 2))
+
         def _refresh_op_params(*_):
             spec = params_for_op(op_var.get())
             visible = set(spec.get("params", []))
@@ -449,6 +482,12 @@ class PipelineUIMixin:
                 "KY": spec.get("ky_lbl", "KY"),
                 "T":  spec.get("t_lbl",  "Threshold"),
             }
+            # Show the op description (or hide if none).
+            _desc = spec.get("desc", "")
+            if _desc:
+                op_desc_lbl.config(text="(i) " + _desc)
+            else:
+                op_desc_lbl.config(text="")
             for key, (row, lbl) in param_rows.items():
                 if key in visible:
                     lbl.config(text=label_map[key] + ":")
@@ -471,7 +510,7 @@ class PipelineUIMixin:
         op_var.trace_add("write", _refresh_op_params)
         _refresh_op_params()
 
-        # ── Combine fields: bitwise op + source view ──────────────────
+        # -- Combine fields: bitwise op + source view ------------------
         combine_fr = tk.Frame(sf)
         combine_fr.pack(fill="x")
         cop_row = tk.Frame(combine_fr)
@@ -488,18 +527,18 @@ class PipelineUIMixin:
                  font=("Arial", 6, "italic"), fg="#888"
                  ).pack(anchor="w", padx=3)
 
-        # ── Combine source: TWO cascading dropdowns (From + Step). ─
+        # -- Combine source: TWO cascading dropdowns (From + Step). -
         src_row, view_row = self._make_cascading_picker(
             combine_fr, comb_src_var, pipeline_list,
             label_from="From:", label_step="Step:",
             allow_none=False)
         src_caption = tk.Label(combine_fr,
-                               text="result = running ⟨op⟩ src",
+                               text="result = running <op> src",
                                font=("Arial", 6, "italic"),
                                fg="#bb66ff")
         src_caption.pack(anchor="w", padx=3)
 
-        # ── OVERLAY-only extras ───────────────────────────────────
+        # -- OVERLAY-only extras -----------------------------------
         # Mask 1 is always the running mask (output of the previous
         # step) painted in C2.  Mask 2 is an optional second mask
         # painted in C1 ("none" disables it).  Base is the BGR image
@@ -526,10 +565,10 @@ class PipelineUIMixin:
         cb_base.bind("<Button-1>",
                      lambda e, c=cb_base: c.configure(values=_base_options()))
 
-        # Mask 2 — cascading From/Step picker (same UX as the regular
+        # Mask 2 - cascading From/Step picker (same UX as the regular
         # combine source). "none" is a valid selection (top-level
         # group) which disables the 2nd mask.
-        tk.Label(ov_fr, text="Mask 2  ▼  pick From → Step:",
+        tk.Label(ov_fr, text="Mask 2  v  pick From -> Step:",
                  font=("Arial", 7, "bold"), fg="#cc88ff",
                  anchor="w").pack(fill="x", padx=3, pady=(4, 0))
         m2_src_row, m2_view_row = self._make_cascading_picker(
@@ -562,7 +601,7 @@ class PipelineUIMixin:
                  ).pack(side="left", padx=2)
 
         tk.Label(ov_fr,
-                 text=("Composite shows: Mask 1 [+ Mask 2] [+ Base] → "
+                 text=("Composite shows: Mask 1 [+ Mask 2] [+ Base] -> "
                        "overlay. Mask 2 = none and Base = none are both "
                        "valid (compose only what's enabled)."),
                  font=("Arial", 6, "italic"), fg="#888",
@@ -594,6 +633,45 @@ class PipelineUIMixin:
         comb_en_var.trace_add("write", _refresh_visibility)
         comb_op_var.trace_add("write", _refresh_visibility)
         _refresh_visibility()
+
+        # -- YOLO add-on (optional, per step) -------------------------
+        # Independent of Morph/Combine - runs YOLO inference on the
+        # chosen RAW source view and produces two extra views per
+        # step:   "<step>_yolo"      = source with boxes drawn
+        #         "<step>_yolo_mask" = binary box-union mask
+        yolo_st = self._yolo_state_for(pipeline_list[idx])
+        yolo_fr = tk.LabelFrame(sf, text="+ YOLO box detection",
+                                font=("Arial", 7, "italic"),
+                                fg="#ffaa66")
+        yolo_fr.pack(fill="x", pady=(4, 1))
+        yolo_top = tk.Frame(yolo_fr); yolo_top.pack(fill="x", padx=2, pady=1)
+        tk.Checkbutton(yolo_top, text="Enable",
+                       variable=yolo_st["yolo_en"],
+                       font=("Arial", 7, "bold"), fg="#ffaa66"
+                       ).pack(side="left")
+        tk.Label(yolo_top, text=" runs on:",
+                 font=("Arial", 7), fg="#888").pack(side="left")
+        # Cascading From / Step picker so the user can point YOLO at
+        # any RAW frame in the program (rgb_raw, ir_raw, rgb_step3 ...).
+        self._make_cascading_picker(
+            yolo_fr, yolo_st["yolo_src"], pipeline_list,
+            label_from="  From:", label_step="  Step:",
+            allow_none=False)
+        # Mode dropdown: how the YOLO box union affects the running mask.
+        mode_row = tk.Frame(yolo_fr); mode_row.pack(fill="x", padx=2, pady=1)
+        tk.Label(mode_row, text="  Mode:", font=("Arial", 7),
+                 width=8, anchor="w").pack(side="left")
+        ttk.Combobox(mode_row, textvariable=yolo_st["yolo_mode"],
+                     values=["box_only", "focus", "subtract"],
+                     width=10, state="readonly",
+                     font=("Arial", 7)).pack(side="left")
+        tk.Label(yolo_fr,
+                 text=("box_only = just draw boxes  |  "
+                       "focus = keep mask only inside boxes  |  "
+                       "subtract = remove mask pixels inside boxes"),
+                 font=("Arial", 6, "italic"), fg="#888",
+                 wraplength=240, justify="left"
+                 ).pack(anchor="w", padx=4)
         return sf
 
     # ------------------------------------------------------------------
@@ -621,7 +699,7 @@ class PipelineUIMixin:
         sf = self._add_step_frame(parent_frame, pipeline_list, new_idx)
         self._grid_step_card(sf, new_idx)
         self._place_add_btn(parent_frame, pipeline_list)
-        # Don't rebuild the All-Masks window on every add — it's
+        # Don't rebuild the All-Masks window on every add - it's
         # expensive. The user can hit Apply (F5) or toggle a step var
         # to refresh. The flowchart's edge list updates automatically
         # when the window is next opened/rebuilt.

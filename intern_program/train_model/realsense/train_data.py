@@ -5,7 +5,7 @@ model = YOLO("yolo26n.pt")   # n/s/m/l/x
 
 # Train
 model.train(
-    data="muroranit_t-hook_combined/data.yaml",
+    data="t-hook_crazyfile-drone-1/data.yaml",
     epochs=100,
     imgsz=640,
     batch=16,

@@ -22,7 +22,7 @@ def get_unique_filename(folder, filename):
     return os.path.join(folder, new_name)
 
 # ---------- model ----------
-model = YOLO("realsense_rgb.pt")
+model = YOLO("t_hook.pt")
 
 results = model("ir_raw_1776668485.png", conf=0.5)
 

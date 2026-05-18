@@ -1,0 +1,236 @@
+SETTINGS DETAIL  -  what each stage does
+
+RGB detection mode: Color (HSV hue)  (hue)
+  Hue   H1 0..10   H2 160..180
+  Sat   S 80..255      Val V 40..255
+  LAB   L 0..255  a* 150..255  b* 0..255   (lab / hsv_lab modes)
+
+RGB pipeline
+  pre-morph (conditions the image before detect):
+   1. GaussBlur        kx=5
+   2. MedianBlur       kx=5
+   3. BilateralBlur    kx=5 ky=5
+   4. CLAHE            kx=5 ky=5
+   5. Gamma            kx=5
+   6. Sharpen          kx=5
+   7. Normalize        
+   8. HistEq           
+   9. GaussBlur        kx=5
+  10. MedianBlur       kx=5
+  11. BilateralBlur    kx=5 ky=5
+  12. CLAHE            kx=5 ky=5
+  13. Gamma            kx=5
+  14. Sharpen          kx=5
+  15. Normalize        
+  16. HistEq           
+  17. GaussBlur        kx=5
+  18. MedianBlur       kx=5
+  19. BilateralBlur    kx=5 ky=5
+  20. CLAHE            kx=5 ky=5
+  pipeline steps (run on the binary mask):
+   1. Close            iter=1 kx=3 ky=3
+   2. Open             iter=1 kx=3 ky=3
+   3. Dilate           iter=1 kx=3 ky=3
+   4. Erode            iter=1 kx=3 ky=3
+   5. combine OR  with mask_pre 
+   6. TopHat           kx=3 ky=3
+   7. BlackHat         kx=3 ky=3
+   8. GaussBlur        kx=3
+   9. MedianBlur       kx=3
+  10. combine OR  with mask_pre 
+  11. Invert           
+  12. FillHoles        
+  13. Thresh_Otsu      
+  14. Close            iter=1 kx=3 ky=3
+  15. combine OR  with mask_pre 
+  16. Dilate           iter=1 kx=3 ky=3
+  17. Erode            iter=1 kx=3 ky=3
+  18. Gradient         kx=3 ky=3
+  19. TopHat           kx=3 ky=3
+  20. combine OR  with mask_pre 
+
+IR detection: threshold t=100  (pixels brighter -> white)
+
+IR pipeline
+  pre-morph (conditions the image before detect):
+   1. GaussBlur        kx=5
+   2. MedianBlur       kx=5
+   3. BilateralBlur    kx=5 ky=5
+   4. CLAHE            kx=5 ky=5
+   5. Gamma            kx=5
+   6. Sharpen          kx=5
+   7. Normalize        
+   8. HistEq           
+   9. GaussBlur        kx=5
+  10. MedianBlur       kx=5
+  11. BilateralBlur    kx=5 ky=5
+  12. CLAHE            kx=5 ky=5
+  13. Gamma            kx=5
+  14. Sharpen          kx=5
+  15. Normalize        
+  16. HistEq           
+  17. GaussBlur        kx=5
+  18. MedianBlur       kx=5
+  19. BilateralBlur    kx=5 ky=5
+  20. CLAHE            kx=5 ky=5
+  pipeline steps (run on the binary mask):
+   1. Close            iter=1 kx=3 ky=3
+   2. Open             iter=1 kx=3 ky=3
+   3. Dilate           iter=1 kx=3 ky=3
+   4. Erode            iter=1 kx=3 ky=3
+   5. combine OR  with mask_pre 
+   6. TopHat           kx=3 ky=3
+   7. BlackHat         kx=3 ky=3
+   8. GaussBlur        kx=3
+   9. MedianBlur       kx=3
+  10. combine OR  with mask_pre 
+  11. Invert           
+  12. FillHoles        
+  13. Thresh_Otsu      
+  14. Close            iter=1 kx=3 ky=3
+  15. combine OR  with mask_pre 
+  16. Dilate           iter=1 kx=3 ky=3
+  17. Erode            iter=1 kx=3 ky=3
+  18. Gradient         kx=3 ky=3
+  19. TopHat           kx=3 ky=3
+  20. combine OR  with mask_pre 
+
+
+Branch 'maxrgb'  type=rgb  channels=HSVab
+  pre-morph (conditions the image before detect):
+   1. GaussBlur        kx=5
+   2. MedianBlur       kx=5
+   3. BilateralBlur    kx=5 ky=5
+   4. CLAHE            kx=5 ky=5
+   5. Gamma            kx=5
+   6. Sharpen          kx=5
+   7. Normalize        
+   8. HistEq           
+   9. GaussBlur        kx=5
+  10. MedianBlur       kx=5
+  11. BilateralBlur    kx=5 ky=5
+  12. CLAHE            kx=5 ky=5
+  13. Gamma            kx=5
+  14. Sharpen          kx=5
+  15. Normalize        
+  16. HistEq           
+  17. GaussBlur        kx=5
+  18. MedianBlur       kx=5
+  19. BilateralBlur    kx=5 ky=5
+  20. CLAHE            kx=5 ky=5
+  pipeline steps (run on the binary mask):
+   1. Close            iter=1 kx=3 ky=3
+   2. Open             iter=1 kx=3 ky=3
+   3. Dilate           iter=1 kx=3 ky=3
+   4. Erode            iter=1 kx=3 ky=3
+   5. combine OR  with mask_pre 
+   6. TopHat           kx=3 ky=3
+   7. BlackHat         kx=3 ky=3
+   8. GaussBlur        kx=3
+   9. MedianBlur       kx=3
+  10. combine OR  with mask_pre 
+  11. Invert           
+  12. FillHoles        
+  13. Thresh_Otsu      
+  14. Close            iter=1 kx=3 ky=3
+  15. combine OR  with mask_pre 
+  16. Dilate           iter=1 kx=3 ky=3
+  17. Erode            iter=1 kx=3 ky=3
+  18. Gradient         kx=3 ky=3
+  19. TopHat           kx=3 ky=3
+  20. combine OR  with mask_pre 
+
+
+Branch 'maxir'  type=ir  threshold None..None
+  pre-morph (conditions the image before detect):
+   1. GaussBlur        kx=5
+   2. MedianBlur       kx=5
+   3. BilateralBlur    kx=5 ky=5
+   4. CLAHE            kx=5 ky=5
+   5. Gamma            kx=5
+   6. Sharpen          kx=5
+   7. Normalize        
+   8. HistEq           
+   9. GaussBlur        kx=5
+  10. MedianBlur       kx=5
+  11. BilateralBlur    kx=5 ky=5
+  12. CLAHE            kx=5 ky=5
+  13. Gamma            kx=5
+  14. Sharpen          kx=5
+  15. Normalize        
+  16. HistEq           
+  17. GaussBlur        kx=5
+  18. MedianBlur       kx=5
+  19. BilateralBlur    kx=5 ky=5
+  20. CLAHE            kx=5 ky=5
+  pipeline steps (run on the binary mask):
+   1. Close            iter=1 kx=3 ky=3
+   2. Open             iter=1 kx=3 ky=3
+   3. Dilate           iter=1 kx=3 ky=3
+   4. Erode            iter=1 kx=3 ky=3
+   5. combine OR  with mask_pre 
+   6. TopHat           kx=3 ky=3
+   7. BlackHat         kx=3 ky=3
+   8. GaussBlur        kx=3
+   9. MedianBlur       kx=3
+  10. combine OR  with mask_pre 
+  11. Invert           
+  12. FillHoles        
+  13. Thresh_Otsu      
+  14. Close            iter=1 kx=3 ky=3
+  15. combine OR  with mask_pre 
+  16. Dilate           iter=1 kx=3 ky=3
+  17. Erode            iter=1 kx=3 ky=3
+  18. Gradient         kx=3 ky=3
+  19. TopHat           kx=3 ky=3
+  20. combine OR  with mask_pre 
+
+
+Branch 'maxcustom'  type=custom  source=rgb_mask
+  pre-morph (conditions the image before detect):
+   1. GaussBlur        kx=5
+   2. MedianBlur       kx=5
+   3. BilateralBlur    kx=5 ky=5
+   4. CLAHE            kx=5 ky=5
+   5. Gamma            kx=5
+   6. Sharpen          kx=5
+   7. Normalize        
+   8. HistEq           
+   9. GaussBlur        kx=5
+  10. MedianBlur       kx=5
+  11. BilateralBlur    kx=5 ky=5
+  12. CLAHE            kx=5 ky=5
+  13. Gamma            kx=5
+  14. Sharpen          kx=5
+  15. Normalize        
+  16. HistEq           
+  17. GaussBlur        kx=5
+  18. MedianBlur       kx=5
+  19. BilateralBlur    kx=5 ky=5
+  20. CLAHE            kx=5 ky=5
+  pipeline steps (run on the binary mask):
+   1. Close            iter=1 kx=3 ky=3
+   2. Open             iter=1 kx=3 ky=3
+   3. Dilate           iter=1 kx=3 ky=3
+   4. Erode            iter=1 kx=3 ky=3
+   5. combine OR  with mask_pre 
+   6. TopHat           kx=3 ky=3
+   7. BlackHat         kx=3 ky=3
+   8. GaussBlur        kx=3
+   9. MedianBlur       kx=3
+  10. combine OR  with mask_pre 
+  11. Invert           
+  12. FillHoles        
+  13. Thresh_Otsu      
+  14. Close            iter=1 kx=3 ky=3
+  15. combine OR  with mask_pre 
+  16. Dilate           iter=1 kx=3 ky=3
+  17. Erode            iter=1 kx=3 ky=3
+  18. Gradient         kx=3 ky=3
+  19. TopHat           kx=3 ky=3
+  20. combine OR  with mask_pre 
+
+YOLO: ON   model=drone_t_hook.pt   conf=0.50
+  detect() also returns yolo_mask + yolo_boxes.
+
+Object filter: Min_area = 20 px

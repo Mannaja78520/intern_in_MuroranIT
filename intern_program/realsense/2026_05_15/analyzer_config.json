@@ -1,0 +1,334 @@
+{
+  "version": 1,
+  "params": {
+    "H1_low": 0,
+    "H1_high": 10,
+    "H2_low": 160,
+    "H2_high": 180,
+    "S_min": 80,
+    "S_max": 255,
+    "V_min": 40,
+    "V_max": 255,
+    "BG_hist": 500,
+    "BG_var": 50,
+    "IR_thresh": 100,
+    "YOLO_Conf": 50,
+    "Min_area": 20
+  },
+  "flags": {
+    "use_bgsub": true,
+    "show_boxes": true,
+    "show_overlay": true,
+    "use_yolo": true,
+    "loop_var": false,
+    "use_clahe_ir": false
+  },
+  "ints": {
+    "clahe_ir_clip": 2,
+    "clahe_ir_tile": 8
+  },
+  "strings": {
+    "ir_cmap": "Gray",
+    "kernel_shape": "Rect",
+    "rgb_mask_color": "#ff0000",
+    "ir_mask_color": "#ffff00",
+    "yolo_mask_color": "#ff00ff",
+    "bgsub_rgb_src": "rgb",
+    "bgsub_ir_src": "ir"
+  },
+  "rgb_pipeline": [
+    {
+      "en": true,
+      "op": "Close",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 10,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "kshape": "Rect",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_input_kind": "image",
+        "yolo_src": "rgb_raw",
+        "yolo_mask_src": "rgb_mask",
+        "yolo_mode": "box_only",
+        "yolo_classes": {
+          "0": true,
+          "1": true
+        }
+      },
+      "step_kind": "morph"
+    },
+    {
+      "en": false,
+      "op": "Open",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 3,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "kshape": "Rect",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_input_kind": "image",
+        "yolo_src": "rgb_raw",
+        "yolo_mask_src": "rgb_mask",
+        "yolo_mode": "box_only",
+        "yolo_classes": {
+          "0": true,
+          "1": true
+        }
+      },
+      "step_kind": "morph"
+    }
+  ],
+  "ir_pipeline": [
+    {
+      "en": true,
+      "op": "Close",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 3,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "kshape": "Rect",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_input_kind": "image",
+        "yolo_src": "rgb_raw",
+        "yolo_mask_src": "rgb_mask",
+        "yolo_mode": "box_only",
+        "yolo_classes": {
+          "0": true,
+          "1": true
+        }
+      },
+      "step_kind": "morph"
+    },
+    {
+      "en": false,
+      "op": "Open",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 3,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "kshape": "Rect",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_input_kind": "image",
+        "yolo_src": "rgb_raw",
+        "yolo_mask_src": "rgb_mask",
+        "yolo_mode": "box_only",
+        "yolo_classes": {
+          "0": true,
+          "1": true
+        }
+      },
+      "step_kind": "morph"
+    }
+  ],
+  "rgb_pre_pipeline": [
+    {
+      "en": false,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "kshape": "Rect",
+      "pm_target": "BGR"
+    },
+    {
+      "en": false,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "kshape": "Rect",
+      "pm_target": "BGR"
+    }
+  ],
+  "ir_pre_pipeline": [
+    {
+      "en": false,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "kshape": "Rect",
+      "pm_target": "BGR"
+    }
+  ],
+  "user_pipelines": [
+    {
+      "name": "branch1",
+      "type": "rgb",
+      "source": "up_branch1_det",
+      "color": "#00ffff",
+      "channels": "HSV",
+      "h1_lo": 0,
+      "h1_hi": 10,
+      "h2_lo": 170,
+      "h2_hi": 180,
+      "s_lo": 120,
+      "s_hi": 255,
+      "v_lo": 70,
+      "v_hi": 255,
+      "ir_lo": 80,
+      "ir_hi": 255,
+      "use_bgsub": false,
+      "bgsub_src": "rgb",
+      "bgsub_history": 500,
+      "bgsub_varth": 16,
+      "use_clahe_ir": false,
+      "clahe_ir_clip": 2,
+      "clahe_ir_tile": 8,
+      "overlay": "mask",
+      "steps": [
+        {
+          "en": false,
+          "op": "Close",
+          "n": 1,
+          "dir": "XY",
+          "kx": 3,
+          "ky": 3,
+          "t": 128,
+          "comb_en": false,
+          "comb_op": "AND",
+          "comb_src": "mask_pre",
+          "kshape": "Rect",
+          "overlay": {
+            "color1": "red",
+            "color2": "cyan",
+            "mask2_src": "none",
+            "base_src": "rgb_raw"
+          },
+          "yolo": {
+            "yolo_en": false,
+            "yolo_input_kind": "image",
+            "yolo_src": "rgb_raw",
+            "yolo_mask_src": "rgb_mask",
+            "yolo_mode": "box_only",
+            "yolo_classes": {
+              "0": true,
+              "1": true
+            }
+          },
+          "step_kind": "morph"
+        },
+        {
+          "en": false,
+          "op": "Close",
+          "n": 1,
+          "dir": "XY",
+          "kx": 3,
+          "ky": 3,
+          "t": 128,
+          "comb_en": false,
+          "comb_op": "AND",
+          "comb_src": "mask_pre",
+          "kshape": "Rect",
+          "overlay": {
+            "color1": "red",
+            "color2": "cyan",
+            "mask2_src": "none",
+            "base_src": "rgb_raw"
+          },
+          "yolo": {
+            "yolo_en": false,
+            "yolo_input_kind": "image",
+            "yolo_src": "rgb_raw",
+            "yolo_mask_src": "rgb_mask",
+            "yolo_mode": "box_only",
+            "yolo_classes": {
+              "0": true,
+              "1": true
+            }
+          },
+          "step_kind": "morph"
+        }
+      ],
+      "pre_steps": [
+        {
+          "en": false,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 128,
+          "comb_en": false,
+          "comb_op": "AND",
+          "comb_src": "mask_pre",
+          "kshape": "Rect",
+          "pm_target": "BGR"
+        },
+        {
+          "en": false,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 128,
+          "comb_en": false,
+          "comb_op": "AND",
+          "comb_src": "mask_pre",
+          "kshape": "Rect",
+          "pm_target": "BGR"
+        }
+      ]
+    }
+  ]
+}

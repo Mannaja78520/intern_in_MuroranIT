@@ -1,0 +1,305 @@
+{
+  "version": 1,
+  "params": {
+    "H1_low": 0,
+    "H1_high": 10,
+    "H2_low": 160,
+    "H2_high": 180,
+    "S_min": 80,
+    "S_max": 255,
+    "V_min": 40,
+    "V_max": 255,
+    "Blur_K": 0,
+    "Blur_KY": 0,
+    "IR_Blur_K": 0,
+    "IR_Blur_KY": 0,
+    "CLAHE_Clip": 2,
+    "CLAHE_Grid": 8,
+    "BG_hist": 500,
+    "BG_var": 50,
+    "IR_thresh": 100,
+    "Min_area": 20,
+    "YOLO_Conf": 50
+  },
+  "flags": {
+    "use_clahe": false,
+    "use_bgsub": true,
+    "show_boxes": true,
+    "show_overlay": true,
+    "use_yolo": true,
+    "loop_var": false
+  },
+  "strings": {
+    "blur_pos_rgb": "Before HSV",
+    "blur_pos_ir": "Before CLAHE",
+    "blur_type_rgb": "GaussBlur",
+    "blur_type_ir": "GaussBlur",
+    "ir_cmap": "Gray",
+    "kernel_shape": "Rect",
+    "rgb_mask_color": "#0bff00",
+    "ir_mask_color": "#ffff00",
+    "yolo_mask_color": "#ff2041"
+  },
+  "rgb_pipeline": [
+    {
+      "en": true,
+      "op": "Close",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 10,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    },
+    {
+      "en": false,
+      "op": "Open",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 3,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    },
+    {
+      "en": false,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "X",
+      "kx": 15,
+      "ky": 1,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    },
+    {
+      "en": false,
+      "op": "Erode",
+      "n": 1,
+      "dir": "Y",
+      "kx": 1,
+      "ky": 15,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    },
+    {
+      "en": false,
+      "op": "Gradient",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 3,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    }
+  ],
+  "ir_pipeline": [
+    {
+      "en": true,
+      "op": "Close",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 3,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    },
+    {
+      "en": false,
+      "op": "Open",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 3,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    },
+    {
+      "en": false,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "X",
+      "kx": 7,
+      "ky": 1,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    },
+    {
+      "en": false,
+      "op": "Erode",
+      "n": 1,
+      "dir": "Y",
+      "kx": 1,
+      "ky": 7,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    },
+    {
+      "en": false,
+      "op": "Gradient",
+      "n": 1,
+      "dir": "XY",
+      "kx": 3,
+      "ky": 3,
+      "t": 128,
+      "comb_en": false,
+      "comb_op": "AND",
+      "comb_src": "mask_pre",
+      "overlay": {
+        "color1": "red",
+        "color2": "cyan",
+        "mask2_src": "none",
+        "base_src": "rgb_raw"
+      },
+      "yolo": {
+        "yolo_en": false,
+        "yolo_src": "rgb_raw",
+        "yolo_mode": "box_only"
+      }
+    }
+  ],
+  "user_pipelines": [
+    {
+      "name": "branch1",
+      "type": "rgb",
+      "source": "up_branch1_det",
+      "color": "#00ffff",
+      "channels": "HSV",
+      "h1_lo": 0,
+      "h1_hi": 10,
+      "h2_lo": 170,
+      "h2_hi": 180,
+      "s_lo": 120,
+      "s_hi": 255,
+      "v_lo": 70,
+      "v_hi": 255,
+      "ir_lo": 80,
+      "ir_hi": 255,
+      "pre_blur_type": "GaussBlur",
+      "pre_blur_k": 0,
+      "pre_blur_ky": 0,
+      "use_bgsub": false,
+      "bgsub_src": "rgb",
+      "bgsub_history": 500,
+      "bgsub_varth": 16,
+      "overlay": "mask",
+      "steps": []
+    }
+  ]
+}

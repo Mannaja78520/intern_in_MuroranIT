@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "params": {
+    "H1_low": 0,
+    "H1_high": 14,
+    "H2_low": 160,
+    "H2_high": 180,
+    "S_min": 70,
+    "S_max": 255,
+    "V_min": 50,
+    "V_max": 255,
+    "L_min": 0,
+    "L_max": 255,
+    "A_min": 152,
+    "A_max": 255,
+    "B_min": 120,
+    "B_max": 175,
+    "YOLO_Conf": 30,
+    "YOLO_Box_Scale": 100,
+    "YOLO_Box_Pad": 0,
+    "Min_area": 12
+  },
+  "flags": {
+    "use_bgsub_rgb": false,
+    "use_bgsub_ir": false,
+    "show_boxes": true,
+    "show_overlay": true,
+    "use_yolo": true,
+    "loop_var": false,
+    "use_clahe_ir": false
+  },
+  "ints": {
+    "clahe_ir_clip": 2,
+    "clahe_ir_tile": 8
+  },
+  "strings": {
+    "rgb_detect_mode": "HSV hue + LAB (red)",
+    "ir_cmap": "Gray",
+    "kernel_shape": "Ellipse",
+    "rgb_mask_color": "#00ffff",
+    "ir_mask_color": "#ffff00",
+    "yolo_mask_color": "#ff00ff",
+    "bgsub_rgb_src": "auto",
+    "bgsub_ir_src": "auto",
+    "combine_a": "none",
+    "combine_b": "none",
+    "combine_op": "none",
+    "combine_c1": "red",
+    "combine_c2": "green"
+  },
+  "rgb_pipeline": [
+    {
+      "en": true,
+      "op": "Close",
+      "n": 1,
+      "dir": "Both",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 0
+    }
+  ],
+  "ir_pipeline": [],
+  "rgb_pre_pipeline": [],
+  "ir_pre_pipeline": [],
+  "user_pipelines": []
+}

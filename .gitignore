@@ -18,6 +18,7 @@ intern_program/videos/
 intern_program/train_model/realsense/.claude
 intern_program/train_model/realsense/muroranit_*
 intern_program/train_model/realsense/predict_*/
+intern_program/train_model/realsense/t-hook*/
 intern_program/train_model/realsense/runs/
 intern_program/realsense/*.mp4
 intern_program/realsense/*.MP4
@@ -25,5 +26,26 @@ intern_program/realsense/*.avi
 intern_program/realsense/**/*.mp4
 intern_program/realsense/**/*.MP4
 intern_program/realsense/**/*.avi
+
+# large data — pictures / images (keep code only, not the bitmaps)
+intern_program/realsense/*.png
+intern_program/realsense/*.PNG
+intern_program/realsense/*.jpg
+intern_program/realsense/*.jpeg
+intern_program/realsense/*.bmp
+intern_program/realsense/**/*.png
+intern_program/realsense/**/*.PNG
+intern_program/realsense/**/*.jpg
+intern_program/realsense/**/*.jpeg
+intern_program/realsense/**/*.bmp
+
+# predicted / training media outside realsense/
+intern_program/train_model/**/*.mp4
+intern_program/train_model/**/*.avi
+intern_program/train_model/**/*.png
+intern_program/train_model/**/*.jpg
+
+# local Claude settings inside the dated folders
+.claude/
 
 

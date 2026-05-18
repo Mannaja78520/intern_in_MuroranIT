@@ -2,12 +2,12 @@
 
 Each branch has a TYPE picked at creation time:
 
-  • ``rgb``    — same H1/H2 + S + V detection structure as the main
+  * ``rgb``    - same H1/H2 + S + V detection structure as the main
                  RGB pipeline, with a CHANNELS dropdown that selects
                  which channels participate in the AND combination
                  (H, S, V, HS, HV, SV, HSV, full).
-  • ``ir``     — IR threshold detection (lo/hi).
-  • ``custom`` — pass-through: pick any view in the program (e.g.
+  * ``ir``     - IR threshold detection (lo/hi).
+  * ``custom`` - pass-through: pick any view in the program (e.g.
                  ``rgb_step3``, ``ir_clahe``, ``up_branch1``) as the
                  source. No channel detection.
 
@@ -42,6 +42,20 @@ class UserPipelinesMixin:
     # ------------------------------------------------------------------
     def _all_view_names(self):
         ups = []
+        # YOLO per-class views (model classes + the "any" union mask)
+        try:
+            ym = getattr(self, "yolo_model", None)
+            if ym is not None:
+                _names = (ym.names if isinstance(ym.names, dict)
+                          else dict(enumerate(ym.names)))
+                for _cid, _cname in _names.items():
+                    _slug = str(_cname).strip().replace(" ", "_") \
+                            or f"c{int(_cid)}"
+                    ups.append(f"yolo_{_slug}_rgb")
+                    ups.append(f"yolo_{_slug}_ir")
+                ups += ["yolo_any_rgb", "yolo_any_ir"]
+        except Exception:
+            pass
         for p in self.user_pipelines:
             nm = p["name"].get().strip()
             if not nm:
@@ -101,9 +115,9 @@ class UserPipelinesMixin:
             "_backSub":       None,
             "_backSub_sig":   None,    # cached (history, varth) tuple
             # Output overlay: how up_<name> is rendered.
-            #   "mask"        → coloured binary mask (current default)
-            #   "overlay_rgb" → mask painted over the rgb_raw image
-            #   "overlay_ir"  → mask painted over the ir_raw image
+            #   "mask"        -> coloured binary mask (current default)
+            #   "overlay_rgb" -> mask painted over the rgb_raw image
+            #   "overlay_ir"  -> mask painted over the ir_raw image
             "overlay":  tk.StringVar(value="mask"),
             "steps":    [],
             "frame":    None,
@@ -147,14 +161,14 @@ class UserPipelinesMixin:
     # ------------------------------------------------------------------
     def _open_branch_setup_dialog(self, rec, on_submit):
         dlg = tk.Toplevel(self.root)
-        dlg.title("New Branch — pick type and detection settings")
+        dlg.title("New Branch - pick type and detection settings")
         dlg.transient(self.root)
         dlg.grab_set()
 
         top = tk.Frame(dlg, padx=12, pady=10)
         top.pack(fill="both", expand=True)
 
-        # ── Name + Colour ────────────────────────────────────────────
+        # -- Name + Colour --------------------------------------------
         row1 = tk.Frame(top)
         row1.pack(fill="x", pady=2)
         tk.Label(row1, text="Name:",
@@ -169,7 +183,7 @@ class UserPipelinesMixin:
                      width=10, state="readonly",
                      font=("Arial", 9)).pack(side="left", padx=4)
 
-        # ── Type radio buttons ───────────────────────────────────────
+        # -- Type radio buttons ---------------------------------------
         type_lf = tk.LabelFrame(top, text="Branch type",
                                 font=("Arial", 9, "bold"),
                                 fg="#cc88ff")
@@ -199,7 +213,7 @@ class UserPipelinesMixin:
                      wraplength=420, justify="left"
                      ).pack(side="left", padx=4)
 
-        # ── RGB / HSV detection panel ────────────────────────────────
+        # -- RGB / HSV detection panel --------------------------------
         rgb_lf = tk.LabelFrame(top, text="RGB / HSV detection",
                                font=("Arial", 9, "bold"))
 
@@ -247,26 +261,25 @@ class UserPipelinesMixin:
         _h_row(rgb_lf, "S",    rec["s_lo"],  rec["s_hi"],  255)
         _h_row(rgb_lf, "V",    rec["v_lo"],  rec["v_hi"],  255)
 
-        # ── IR detection panel ───────────────────────────────────────
+        # -- IR detection panel ---------------------------------------
         ir_lf = tk.LabelFrame(top, text="IR threshold detection",
                               font=("Arial", 9, "bold"))
         _h_row(ir_lf, "IR",   rec["ir_lo"], rec["ir_hi"], 255)
 
-        # ── Custom-source panel ──────────────────────────────────────
+        # -- Custom-source panel --------------------------------------
         cust_lf = tk.LabelFrame(top, text="Custom source",
                                 font=("Arial", 9, "bold"))
-        crow = tk.Frame(cust_lf)
-        crow.pack(fill="x", padx=6, pady=4)
-        tk.Label(crow, text="Source view:",
-                 font=("Arial", 9, "bold")).pack(side="left")
-        cust_cb = ttk.Combobox(crow, textvariable=rec["source"],
-                               values=self._all_view_names(),
-                               width=24, state="readonly",
-                               font=("Arial", 9))
-        cust_cb.pack(side="left", padx=4)
-        cust_cb.bind("<Button-1>",
-                     lambda e, c=cust_cb:
-                         c.configure(values=self._all_view_names()))
+        tk.Label(cust_lf,
+                 text="Pick the source view via two cascading dropdowns:",
+                 font=("Arial", 8), fg="#888"
+                 ).pack(anchor="w", padx=6, pady=(4, 2))
+        # Cascading From: / Step: picker — same UX as the combine and
+        # Mask 2 pickers so behaviour is consistent everywhere.
+        self._make_cascading_picker(
+            cust_lf, rec["source"],
+            pipeline_list=[],          # no in-pipeline shortcuts here
+            label_from="From:", label_step="Step:",
+            allow_none=False)
 
         def _refresh_panels():
             t = rec["type"].get()
@@ -280,7 +293,7 @@ class UserPipelinesMixin:
                 cust_lf.pack(fill="x", pady=4)
         _refresh_panels()
 
-        # ── Buttons ──────────────────────────────────────────────────
+        # -- Buttons --------------------------------------------------
         btn = tk.Frame(top)
         btn.pack(fill="x", pady=(8, 0))
 
@@ -300,7 +313,7 @@ class UserPipelinesMixin:
             dlg.destroy()
             on_submit(rec)
 
-        tk.Button(btn, text="✓ Submit", bg="#225522", fg="white",
+        tk.Button(btn, text="[OK] Submit", bg="#225522", fg="white",
                   font=("Arial", 9, "bold"),
                   width=12, command=_submit).pack(side="right", padx=4)
         tk.Button(btn, text="Cancel",
@@ -326,19 +339,16 @@ class UserPipelinesMixin:
                  font=("Arial", 8)).pack(side="left")
         tk.Entry(hdr, textvariable=rec["name"], width=12,
                  font=("Arial", 8)).pack(side="left", padx=2)
-        tk.Label(hdr, text=" → up_<name>",
+        tk.Label(hdr, text=" -> up_<name>",
                  font=("Arial", 7), fg="#888").pack(side="left")
 
-        tk.Label(hdr, text="   Source:",
+        # Source view (read-only display in the header — full
+        # cascading picker lives in its own row below).
+        tk.Label(hdr, text="  Source:",
                  font=("Arial", 8)).pack(side="left")
-        src_cb = ttk.Combobox(hdr, textvariable=rec["source"],
-                              values=self._all_view_names(),
-                              width=20, state="readonly",
-                              font=("Arial", 8))
-        src_cb.pack(side="left", padx=2)
-        src_cb.bind("<Button-1>",
-                    lambda e, cb=src_cb:
-                        cb.configure(values=self._all_view_names()))
+        tk.Label(hdr, textvariable=rec["source"],
+                 font=("Arial", 8, "bold"), fg="#aaccff",
+                 width=22, anchor="w").pack(side="left", padx=2)
 
         tk.Label(hdr, text=" Colour:",
                  font=("Arial", 8)).pack(side="left", padx=(8, 0))
@@ -348,16 +358,27 @@ class UserPipelinesMixin:
                      width=8, state="readonly",
                      font=("Arial", 8)).pack(side="left", padx=2)
 
-        tk.Button(hdr, text="✎ Edit detection",
+        tk.Button(hdr, text="[edit] Edit detection",
                   font=("Arial", 8),
                   command=lambda r=rec: self._edit_branch_detection(r)
                   ).pack(side="right", padx=4)
-        tk.Button(hdr, text="× Delete", fg="#ff4444",
+        tk.Button(hdr, text="x Delete", fg="#ff4444",
                   font=("Arial", 8, "bold"),
                   command=lambda r=rec: self._on_remove_user_pipeline(r)
                   ).pack(side="right", padx=4)
 
-        # ── Per-branch options row (BG subtractor + Overlay output) ──
+        # -- Inline Source picker (cascading From -> Step), so the
+        # source can be re-pointed without opening the modal. --
+        src_lf = tk.LabelFrame(outer, text="Source view (pick From -> Step)",
+                               font=("Arial", 7, "italic"), fg="#aaccff")
+        src_lf.pack(fill="x", padx=3, pady=(0, 2))
+        self._make_cascading_picker(
+            src_lf, rec["source"],
+            pipeline_list=[],
+            label_from="From:", label_step="Step:",
+            allow_none=False)
+
+        # -- Per-branch options row (BG subtractor + Overlay output) --
         opt_row = tk.Frame(outer)
         opt_row.pack(fill="x", padx=6, pady=(0, 2))
         tk.Checkbutton(opt_row, text="Use BG sub",
@@ -392,7 +413,7 @@ class UserPipelinesMixin:
                      width=14, state="readonly",
                      font=("Arial", 8)).pack(side="left", padx=2)
         tk.Label(opt_row,
-                 text="(mask → coloured binary,  overlay_rgb/hsv/ir → "
+                 text="(mask -> coloured binary,  overlay_rgb/hsv/ir -> "
                       "paint mask onto the chosen base image)",
                  font=("Arial", 7), fg="#888"
                  ).pack(side="left", padx=4)
@@ -414,7 +435,7 @@ class UserPipelinesMixin:
                 lambda *a, r=rec, lbl=det_summary:
                     lbl.config(text=self._branch_summary(r)))
 
-        # ── Inline detection sliders (type-aware) ─────────────────────
+        # -- Inline detection sliders (type-aware) ---------------------
         # RGB-type branches see HSV sliders, IR-type branches see the
         # IR threshold slider, custom branches show nothing here.
         det_inline = tk.LabelFrame(outer, text="Detection (live)",
@@ -433,7 +454,7 @@ class UserPipelinesMixin:
                        width=5, font=("Arial", 8)
                        ).pack(side="left", padx=2)
             # Fixed length (matches the Edit-detection modal sliders)
-            # — no expand=True, so the slider doesn't stretch to fill
+            # - no expand=True, so the slider doesn't stretch to fill
             # the whole branch width.
             tk.Scale(r, variable=var, from_=0, to=lo_max,
                      orient="horizontal", length=140,
@@ -452,8 +473,8 @@ class UserPipelinesMixin:
                      width=8, state="readonly",
                      font=("Arial", 8)).pack(side="left")
         # Build slider rows but keep references so we can show/hide
-        # them based on the Channels mode (H mode → only H rows,
-        # S mode → only S rows, etc.).
+        # them based on the Channels mode (H mode -> only H rows,
+        # S mode -> only S rows, etc.).
         h1_lo_r = _slider_row(hsv_frame, "H1 lo", rec["h1_lo"], lo_max=180)
         h1_hi_r = _slider_row(hsv_frame, "H1 hi", rec["h1_hi"], lo_max=180)
         h2_lo_r = _slider_row(hsv_frame, "H2 lo", rec["h2_lo"], lo_max=180)
@@ -498,7 +519,7 @@ class UserPipelinesMixin:
         # Custom-type placeholder
         custom_frame = tk.Frame(det_inline)
         tk.Label(custom_frame,
-                 text="Custom branch — no detection sliders. "
+                 text="Custom branch - no detection sliders. "
                       "The Source view is used directly as the input.",
                  font=("Arial", 7, "italic"), fg="#888",
                  wraplength=480, justify="left"
@@ -524,7 +545,9 @@ class UserPipelinesMixin:
 
     def _branch_summary(self, rec):
         t = rec["type"].get()
-        bg = (f"  bgsub={rec['bgsub_src'].get()}"
+        bg = (f"  bgsub({rec['bgsub_src'].get()}"
+              f", h={rec['bgsub_history'].get()}"
+              f", vT={rec['bgsub_varth'].get()})"
               if rec.get("use_bgsub") and rec["use_bgsub"].get()
               else "")
         ov = (f"  out={rec['overlay'].get()}"
@@ -538,11 +561,11 @@ class UserPipelinesMixin:
                     f"H2=[{rec['h2_lo'].get()}..{rec['h2_hi'].get()}]  "
                     f"S=[{rec['s_lo'].get()}..{rec['s_hi'].get()}]  "
                     f"V=[{rec['v_lo'].get()}..{rec['v_hi'].get()}]  "
-                    f"→ up_{rec['name'].get()}_det")
+                    f"-> up_{rec['name'].get()}_det")
         if t == "ir":
             return (f"  type=IR{suf}  "
                     f"thresh=[{rec['ir_lo'].get()}..{rec['ir_hi'].get()}]  "
-                    f"→ up_{rec['name'].get()}_det")
+                    f"-> up_{rec['name'].get()}_det")
         return (f"  type=Custom{suf}  source={rec['source'].get()}  "
                 f"(no detection)")
 

@@ -27,7 +27,7 @@ from user_pipelines_mixin  import UserPipelinesMixin
 class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
     def __init__(self, root):
         self.root = root
-        self.root.title("RealSense – Cable Video Analyzer")
+        self.root.title("RealSense - Cable Video Analyzer")
 
         self.cap_rgb = None
         self.cap_ir  = None
@@ -52,10 +52,16 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
 
         # All-Masks window state
         self.all_masks_win         = None
-        self.all_masks_labels      = {}   # view_name → image Label
-        self.all_masks_step_labels = {}   # "rgb_step1"… → text Label
+        self.all_masks_labels      = {}   # view_name -> image Label
+        self.all_masks_step_labels = {}   # "rgb_step1"... -> text Label
 
         # Zoom window state
+        # Zoom windows — multiple at once. Keyed by view_name; each
+        # entry is a dict with the Toplevel, image label, hover readout,
+        # and the most-recent source ndarray for pixel-value lookup.
+        self._zoom_wins = {}
+        # Legacy single-window slots (still set so older code paths
+        # don't blow up; they alias the most-recently opened window).
         self._zoom_win   = None
         self._zoom_label = None
         self._zoom_view  = None
@@ -65,24 +71,34 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         self._arrow_loop_id       = None
         self._arrow_release_timer = {}
 
+        # Persisted user prefs (must come before YOLO so the previously
+        # loaded model path can be restored at startup).
+        self._prefs_path = os.path.join(os.path.expanduser("~"),
+                                        ".realsense_analyzer_prefs.json")
+
         # YOLO
         self.yolo_model = None
-        if _YOLO_AVAILABLE and os.path.exists(YOLO_MODEL_PATH):
+        # Per-class enable map: { class_id: tk.BooleanVar }. Built
+        # AFTER the model loads so we know how many classes there are.
+        self.yolo_class_enabled = {}
+        _saved_yolo = self._load_pref("yolo_model_path", YOLO_MODEL_PATH)
+        if _YOLO_AVAILABLE and _saved_yolo and os.path.exists(_saved_yolo):
             try:
-                self.yolo_model = _YOLO(YOLO_MODEL_PATH)
-                print(f"YOLO loaded — classes: {self.yolo_model.names}")
+                self.yolo_model = _YOLO(_saved_yolo)
+                print(f"YOLO loaded ({_saved_yolo}) - classes: "
+                      f"{self.yolo_model.names}")
             except Exception as e:
                 print(f"YOLO load failed: {e}")
         elif not _YOLO_AVAILABLE:
-            print("ultralytics not installed — YOLO disabled")
+            print("ultralytics not installed - YOLO disabled")
         else:
-            print(f"Model not found: {YOLO_MODEL_PATH}")
+            print(f"Model not found: {_saved_yolo}")
 
         self.rgb_pipeline = []
         self.ir_pipeline  = []
 
         # User-defined parallel pipelines. Each entry is a dict:
-        #   { "name":      tk.StringVar,        # output name → view "up_<name>"
+        #   { "name":      tk.StringVar,        # output name -> view "up_<name>"
         #     "source":    tk.StringVar,        # any view name (built-in or up_*)
         #     "color":     tk.StringVar,        # one of "red"/"yellow"/...
         #     "steps":     [10-tuple, ...],     # same shape as rgb_pipeline
@@ -90,12 +106,9 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         #     "steps_row": tk.Frame }           # row that holds step cards
         self.user_pipelines = []
 
-        # Persisted user prefs (screenshot dir, etc.).
-        self._prefs_path = os.path.join(os.path.expanduser("~"),
-                                        ".realsense_analyzer_prefs.json")
         self.screenshot_dir_var = tk.StringVar(
             value=self._load_pref("screenshot_dir", SCREENSHOTS_DIR))
-        # Recording save dir — same UX as screenshot dir.
+        # Recording save dir - same UX as screenshot dir.
         self.recording_dir_var = tk.StringVar(
             value=self._load_pref("recording_dir",
                                   os.path.join(os.getcwd(),
@@ -173,11 +186,11 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                                        width=24, state="readonly")
         self.folder_cb.pack(side="left", padx=4)
         tk.Button(sel, text="Load", command=self._load).pack(side="left")
-        self.lbl_status = tk.Label(sel, text="— select a folder and click Load —",
+        self.lbl_status = tk.Label(sel, text="- select a folder and click Load -",
                                    fg="gray")
         self.lbl_status.pack(side="left", padx=8)
 
-        # ---- 2×3 video panels ----
+        # ---- 2x3 video panels ----
         vf = tk.Frame(p)
         vf.pack()
         self.panels     = {}
@@ -232,12 +245,12 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         self.lbl_pos = tk.Label(ctrl, text="0 / 0", width=12)
         self.lbl_pos.pack(side="left")
 
-        self.btn_rec = tk.Button(ctrl, text="● Rec", width=7,
+        self.btn_rec = tk.Button(ctrl, text="* Rec", width=7,
                                  bg="darkred", fg="white",
                                  font=("Arial", 9, "bold"),
                                  command=self._toggle_record)
         self.btn_rec.pack(side="left", padx=4)
-        tk.Button(ctrl, text="Save→", width=6,
+        tk.Button(ctrl, text="Save->", width=6,
                   font=("Arial", 8),
                   command=self._pick_recording_dir).pack(side="left")
         tk.Label(ctrl, textvariable=self.recording_dir_var,
@@ -249,16 +262,16 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         tk.Button(ctrl, text="Apply F5", width=8,
                   bg="#1a3a1a", fg="white", font=("Arial", 9, "bold"),
                   command=self._apply_all).pack(side="left", padx=4)
-        tk.Button(ctrl, text="📷 F12", width=7,
+        tk.Button(ctrl, text="[C] F12", width=7,
                   bg="#1a1a3a", fg="white", font=("Arial", 9),
                   command=self._take_screenshot).pack(side="left", padx=4)
-        tk.Button(ctrl, text="Save→", width=6,
+        tk.Button(ctrl, text="Save->", width=6,
                   font=("Arial", 8),
                   command=self._pick_screenshot_dir).pack(side="left")
         tk.Label(ctrl, textvariable=self.screenshot_dir_var,
                  font=("Arial", 7), fg="#888888",
                  width=24, anchor="w").pack(side="left", padx=2)
-        tk.Label(ctrl, text="Space=Play/Pause  ◄►=Step",
+        tk.Label(ctrl, text="Space=Play/Pause  <>=Step",
                  font=("Arial", 7), fg="gray").pack(side="left", padx=4)
 
         # ---- detection parameters ----
@@ -282,36 +295,36 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         top_cols = tk.Frame(pf)
         top_cols.pack(fill="x")
 
-        col1 = tk.LabelFrame(top_cols, text="RGB – HSV Range",
+        col1 = tk.LabelFrame(top_cols, text="RGB - HSV Range",
                              font=("Arial", 8, "bold"))
         col1.pack(side="left", padx=3, pady=3, fill="y")
-        tk.Label(col1, text="── Hue range 1 ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col1, text="-- Hue range 1 --", font=("Arial", 7), fg="gray").pack(anchor="w")
         add_param(col1, "H1_low",  0,   0, 180)
         add_param(col1, "H1_high", 10,  0, 180)
-        tk.Label(col1, text="── Hue range 2 ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col1, text="-- Hue range 2 --", font=("Arial", 7), fg="gray").pack(anchor="w")
         add_param(col1, "H2_low",  160, 0, 180)
         add_param(col1, "H2_high", 180, 0, 180)
-        tk.Label(col1, text="── Saturation ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col1, text="-- Saturation --", font=("Arial", 7), fg="gray").pack(anchor="w")
         add_param(col1, "S_min",   80,  0, 255)
         add_param(col1, "S_max",   255, 0, 255)
-        tk.Label(col1, text="── Value (brightness) ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col1, text="-- Value (brightness) --", font=("Arial", 7), fg="gray").pack(anchor="w")
         add_param(col1, "V_min",   40,  0, 255)
         add_param(col1, "V_max",   255, 0, 255)
 
         col2 = tk.LabelFrame(top_cols, text="Pre-process",
                              font=("Arial", 8, "bold"))
         col2.pack(side="left", padx=3, pady=3, fill="y")
-        tk.Label(col2, text="── RGB ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col2, text="-- RGB --", font=("Arial", 7), fg="gray").pack(anchor="w")
         add_param(col2, "Blur_K",    0, 0, 21)
-        tk.Label(col2, text="── IR ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col2, text="-- IR --", font=("Arial", 7), fg="gray").pack(anchor="w")
         add_param(col2, "IR_Blur_K", 0, 0, 21)
-        tk.Label(col2, text="── IR CLAHE ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col2, text="-- IR CLAHE --", font=("Arial", 7), fg="gray").pack(anchor="w")
         self.use_clahe = tk.BooleanVar(value=False)
         tk.Checkbutton(col2, text="Use CLAHE", variable=self.use_clahe,
                        font=("Arial", 8)).pack(anchor="w")
         add_param(col2, "CLAHE_Clip", 2, 1, 40)
         add_param(col2, "CLAHE_Grid", 8, 1, 16)
-        tk.Label(col2, text="── Kernel shape (XY) ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col2, text="-- Kernel shape (XY) --", font=("Arial", 7), fg="gray").pack(anchor="w")
         ks_row = tk.Frame(col2)
         ks_row.pack(fill="x", pady=2)
         tk.Label(ks_row, text="K Shape:", font=("Arial", 8),
@@ -323,7 +336,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         tk.Label(col2, text="(X/Y steps always use Rect)",
                  font=("Arial", 7), fg="gray").pack(anchor="w")
 
-        tk.Label(col2, text="── RGB Blur Position ──",
+        tk.Label(col2, text="-- RGB Blur Position --",
                  font=("Arial", 7), fg="gray").pack(anchor="w")
         self.blur_pos_rgb_var = tk.StringVar(value="Before HSV")
         for txt, val in [("Before HSV  (blur RGB image)", "Before HSV"),
@@ -331,7 +344,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
             tk.Radiobutton(col2, text=txt, variable=self.blur_pos_rgb_var,
                            value=val, font=("Arial", 7)).pack(anchor="w")
 
-        tk.Label(col2, text="── IR Blur Position ──",
+        tk.Label(col2, text="-- IR Blur Position --",
                  font=("Arial", 7), fg="gray").pack(anchor="w")
         self.blur_pos_ir_var = tk.StringVar(value="Before CLAHE")
         for txt, val in [("Before CLAHE (blur IR image)", "Before CLAHE"),
@@ -342,14 +355,14 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         col3 = tk.LabelFrame(top_cols, text="BG Sub / IR / YOLO / Filter",
                              font=("Arial", 8, "bold"))
         col3.pack(side="left", padx=3, pady=3, fill="y")
-        tk.Label(col3, text="── Background Sub ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col3, text="-- Background Sub --", font=("Arial", 7), fg="gray").pack(anchor="w")
         add_param(col3, "BG_hist", 500, 10, 2000)
         add_param(col3, "BG_var",   50,  1,  200)
         tk.Button(col3, text="Reset BG Sub", font=("Arial", 8),
                   command=self._reset_bg).pack(pady=2)
-        tk.Label(col3, text="── IR Threshold ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col3, text="-- IR Threshold --", font=("Arial", 7), fg="gray").pack(anchor="w")
         add_param(col3, "IR_thresh", 100, 1, 254)
-        tk.Label(col3, text="── Filter ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        tk.Label(col3, text="-- Filter --", font=("Arial", 7), fg="gray").pack(anchor="w")
         add_param(col3, "Min_area",   20, 1, 5000)
 
         self.use_bgsub    = tk.BooleanVar(value=True)
@@ -362,15 +375,56 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
 
         yolo_status = ("loaded" if self.yolo_model else
                        "no ultralytics" if not _YOLO_AVAILABLE else "model not found")
-        tk.Label(col3, text=f"── YOLO  ({yolo_status}) ──",
+        tk.Label(col3, text=f"-- YOLO  ({yolo_status}) --",
                  font=("Arial", 7), fg="gray").pack(anchor="w")
         self.use_yolo = tk.BooleanVar(value=self.yolo_model is not None)
         tk.Checkbutton(col3, text="Use YOLO", variable=self.use_yolo,
-                       font=("Arial", 8),
-                       state="normal" if self.yolo_model else "disabled").pack(anchor="w")
+                       font=("Arial", 8)).pack(anchor="w")
         add_param(col3, "YOLO_Conf", 50, 1, 99)
 
-        tk.Label(col3, text="── IR Display ──", font=("Arial", 7), fg="gray").pack(anchor="w")
+        # Load-model row - button on its own line, path BELOW so a
+        # long path can't push the next panel off-screen.
+        tk.Button(col3, text="Load YOLO model...",
+                  font=("Arial", 8),
+                  command=self._pick_yolo_model_file
+                  ).pack(anchor="w", pady=(2, 0))
+        _saved_path = (self._load_pref("yolo_model_path",
+                                       YOLO_MODEL_PATH)
+                       if self.yolo_model else "(none loaded)")
+        self.yolo_model_path_var = tk.StringVar(value=_saved_path)
+        tk.Label(col3, textvariable=self.yolo_model_path_var,
+                 font=("Arial", 7), fg="#888",
+                 anchor="w", justify="left",
+                 wraplength=220
+                 ).pack(anchor="w", padx=2)
+
+        # YOLO class filter - rebuilt every time a new model loads.
+        # Wrapped in a fixed-height scrollable canvas so a model with
+        # many classes can't push other panels (IR Display, etc.)
+        # off-screen or overlap them.
+        self.yolo_class_panel = tk.LabelFrame(
+            col3, text="YOLO classes",
+            font=("Arial", 7, "bold"), fg="#cccccc")
+        self.yolo_class_panel.pack(fill="x", pady=2)
+
+        self._yolo_classes_canvas = tk.Canvas(
+            self.yolo_class_panel, height=140, highlightthickness=0)
+        _yolo_sb = ttk.Scrollbar(
+            self.yolo_class_panel, orient="vertical",
+            command=self._yolo_classes_canvas.yview)
+        self._yolo_classes_canvas.configure(yscrollcommand=_yolo_sb.set)
+        _yolo_sb.pack(side="right", fill="y")
+        self._yolo_classes_canvas.pack(side="left", fill="both", expand=True)
+        self._yolo_classes_inner = tk.Frame(self._yolo_classes_canvas)
+        self._yolo_classes_canvas.create_window(
+            (0, 0), window=self._yolo_classes_inner, anchor="nw")
+        self._yolo_classes_inner.bind(
+            "<Configure>",
+            lambda e: self._yolo_classes_canvas.configure(
+                scrollregion=self._yolo_classes_canvas.bbox("all")))
+        self._rebuild_yolo_class_panel()
+
+        tk.Label(col3, text="-- IR Display --", font=("Arial", 7), fg="gray").pack(anchor="w")
         cmap_row = tk.Frame(col3)
         cmap_row.pack(fill="x", pady=2)
         tk.Label(cmap_row, text="IR colour:", font=("Arial", 8)).pack(side="left")
@@ -382,12 +436,12 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         # ---- Processing Pipelines (dynamic add/remove per channel) ----
         pipelines_outer = tk.LabelFrame(
             pf,
-            text="Processing Pipelines  —  RGB & IR independent  |  + Add / × Remove steps",
+            text="Processing Pipelines  -  RGB & IR independent  |  + Add / x Remove steps",
             font=("Arial", 8, "bold"))
         pipelines_outer.pack(fill="x", padx=3, pady=4)
         tk.Label(pipelines_outer,
-                 text="Morph → N/Dir/KX/KY  |  GaussBlur/MedianBlur → KX  "
-                      "|  BilateralBlur → KX(d)/KY(σ)  |  Thresh_* → T  |  Invert/FillHoles → no params",
+                 text="Morph -> N/Dir/KX/KY  |  GaussBlur/MedianBlur -> KX  "
+                      "|  BilateralBlur -> KX(d)/KY(sigma)  |  Thresh_* -> T  |  Invert/FillHoles -> no params",
                  font=("Arial", 7), fg="gray").pack(anchor="w", padx=3)
 
         self.rgb_pip_frame = tk.LabelFrame(pipelines_outer, text="RGB Processing Steps",
@@ -418,7 +472,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         self._rebuild_pipeline_ui(self.ir_pip_frame,  self.ir_pipeline)
 
         # ---- Combine AND / OR / XOR of any two views ----
-        cf = tk.LabelFrame(pf, text="Combine  (AND / OR / XOR any two views → 'combined')",
+        cf = tk.LabelFrame(pf, text="Combine  (AND / OR / XOR any two views -> 'combined')",
                            font=("Arial", 8, "bold"))
         cf.pack(fill="x", padx=3, pady=4)
         crow = tk.Frame(cf)
@@ -442,11 +496,11 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         cb_b.pack(side="left", padx=2)
         cb_b.bind("<Button-1>",
                   lambda e, c=cb_b: c.configure(values=self._all_view_names()))
-        tk.Label(crow, text="→ select 'combined' in any panel or zoom",
+        tk.Label(crow, text="-> select 'combined' in any panel or zoom",
                  font=("Arial", 7), fg="gray").pack(side="left", padx=8)
 
-        # ---- User Pipelines (parallel branches) ─────────────────────────
-        upf = tk.LabelFrame(p, text="User Pipelines  (parallel branches — outputs as up_<name>)",
+        # ---- User Pipelines (parallel branches) -------------------------
+        upf = tk.LabelFrame(p, text="User Pipelines  (parallel branches - outputs as up_<name>)",
                             font=("Arial", 8, "bold"), fg="#cc88ff")
         upf.pack(fill="x", padx=3, pady=3)
         top_row = tk.Frame(upf)
@@ -464,7 +518,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         self.user_pipelines_host.pack(fill="x", padx=4, pady=2)
 
         # ---- status bars ----
-        self.lbl_cable = tk.Label(p, text="RGB cable pixels: —   IR cable pixels: —",
+        self.lbl_cable = tk.Label(p, text="RGB cable pixels: -   IR cable pixels: -",
                                   font=("Courier", 8), anchor="w")
         self.lbl_cable.pack(fill="x", padx=6)
         self.lbl_rec_status = tk.Label(p, text="", fg="red",
@@ -486,7 +540,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
     # ------------------------------------------------------------------
     # Screenshot (F12 or button)
     # ------------------------------------------------------------------
-    # ── User-prefs persistence (screenshot dir etc.) ──────────────────
+    # -- User-prefs persistence (screenshot dir etc.) ------------------
     def _load_pref(self, key, default=None):
         try:
             import json
@@ -524,6 +578,73 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         if d:
             self.recording_dir_var.set(d)
             self._save_pref("recording_dir", d)
+
+    # -- YOLO model loader -----------------------------------------
+    def _pick_yolo_model_file(self):
+        """Open a file dialog and (re)load the YOLO model from disk."""
+        from tkinter import filedialog
+        path = filedialog.askopenfilename(
+            title="Choose a YOLO model (.pt / .onnx)",
+            filetypes=[("YOLO weights", "*.pt *.onnx *.engine"),
+                       ("All files", "*")])
+        if not path:
+            return
+        if not _YOLO_AVAILABLE:
+            self.lbl_status.config(
+                text="ultralytics not installed - cannot load YOLO",
+                fg="red")
+            return
+        try:
+            self.yolo_model = _YOLO(path)
+            self.yolo_model_path_var.set(path)
+            self._save_pref("yolo_model_path", path)
+            print(f"YOLO loaded: {path}")
+            print(f"  classes: {self.yolo_model.names}")
+            self.use_yolo.set(True)
+            # Wipe per-class state for previous model and rebuild UI.
+            self.yolo_class_enabled = {}
+            self._rebuild_yolo_class_panel()
+            self._refresh()
+        except Exception as e:
+            self.lbl_status.config(text=f"YOLO load failed: {e}",
+                                   fg="red")
+
+    def _rebuild_yolo_class_panel(self):
+        """Refill the per-class checkbox panel from the current model.
+        Checkboxes go into the bounded scrollable inner frame so the
+        panel never grows past its 140-px-high canvas viewport."""
+        host = getattr(self, "_yolo_classes_inner", None)
+        if host is None:
+            return
+        for w in host.winfo_children():
+            w.destroy()
+        if not self.yolo_model:
+            tk.Label(host, text="(no model loaded)",
+                     font=("Arial", 7, "italic"), fg="#888",
+                     anchor="w").pack(anchor="w", padx=4)
+            self.yolo_class_panel.config(text="YOLO classes")
+            return
+        try:
+            _names = self.yolo_model.names
+            if isinstance(_names, dict):
+                _items = sorted(_names.items(), key=lambda x: int(x[0]))
+            else:
+                _items = list(enumerate(_names))
+        except Exception:
+            _items = []
+        self.yolo_class_panel.config(text=f"YOLO classes ({len(_items)})")
+        for _cid, _cname in _items:
+            _cid = int(_cid)
+            _v = self.yolo_class_enabled.get(_cid)
+            if _v is None:
+                _v = tk.BooleanVar(value=True)
+                self.yolo_class_enabled[_cid] = _v
+            tk.Checkbutton(host,
+                           text=f"{_cid}: {_cname}",
+                           variable=_v,
+                           font=("Arial", 7),
+                           anchor="w"
+                           ).pack(anchor="w", padx=4)
 
     def _take_screenshot(self):
         import subprocess
@@ -721,15 +842,15 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         }
         self.rec_dir   = out_dir
         self.recording = True
-        self.btn_rec.config(text="■ Stop", bg="red")
-        self.lbl_rec_status.config(text=f"● Recording → {out_dir}/")
+        self.btn_rec.config(text="[] Stop", bg="red")
+        self.lbl_rec_status.config(text=f"* Recording -> {out_dir}/")
 
     def _stop_record(self):
         self.recording = False
         for w in self.writers.values(): w.release()
         self.writers = {}
-        self.btn_rec.config(text="● Rec", bg="darkred")
-        self.lbl_rec_status.config(text=f"Saved → {self.rec_dir}/  (6 videos)")
+        self.btn_rec.config(text="* Rec", bg="darkred")
+        self.lbl_rec_status.config(text=f"Saved -> {self.rec_dir}/  (6 videos)")
 
     # ------------------------------------------------------------------
     # Frame display & processing
@@ -905,10 +1026,10 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                 return _fill_holes(mask)
             return mask
 
-        # Progressively populated map of fully-qualified view names →
+        # Progressively populated map of fully-qualified view names ->
         # uint8 mask (single-channel). _resolve_src consults this so that
         # any step in any pipeline can combine with any view, including
-        # cross-pipeline references like  branch1 ⊕ rgb_step4.
+        # cross-pipeline references like  branch1 + rgb_step4.
         view_lookup = {}
 
         def _coerce_mask(img, like):
@@ -935,7 +1056,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                     return snap_steps[si] if si < len(snap_steps) else mask_pre
                 except (ValueError, IndexError):
                     return mask_pre
-            # Full view-name reference (rgb_step4, up_branch1, ir_thresh_det…)
+            # Full view-name reference (rgb_step4, up_branch1, ir_thresh_det...)
             if src_str in view_lookup:
                 return _coerce_mask(view_lookup[src_str], mask_pre)
             return mask_pre
@@ -968,6 +1089,98 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
             "ir_raw":       _ir_bgr,
             "ir_gray":      cv2.cvtColor(snap_ir_gray, cv2.COLOR_GRAY2BGR),
         }
+
+        # ── YOLO helpers (defined EARLY so per-step YOLO add-ons
+        # can run inference DURING pipeline processing — needed for
+        # the "focus" / "subtract" modes that filter the running
+        # mask with the YOLO box union). The helpers also support
+        # the post-loop view-emission code (just calls them with
+        # the same cache so each source view is inferred once). ──
+        _step_yolo_cache = {}
+
+        def _resolve_bgr_view(name):
+            """Best-effort BGR lookup for a view name."""
+            v = bgr_views.get(name)
+            if v is None:
+                try:
+                    v = views.get(name)        # noqa: F821 (late-bound)
+                except NameError:
+                    v = None
+            if v is None:
+                v2 = view_lookup.get(name)
+                if v2 is not None:
+                    v = (v2 if v2.ndim == 3
+                         else cv2.cvtColor(v2, cv2.COLOR_GRAY2BGR))
+            if v is None:
+                v = f_rgb
+            if v.ndim == 2:
+                v = cv2.cvtColor(v, cv2.COLOR_GRAY2BGR)
+            return v
+
+        def _run_yolo_for(src_name):
+            """Run YOLO on the named view (cached). Returns
+            (boxed_bgr, mask_uint8). Empty if model missing."""
+            if src_name in _step_yolo_cache:
+                return _step_yolo_cache[src_name]
+            base = _resolve_bgr_view(src_name).copy()
+            mask = np.zeros(base.shape[:2], dtype=np.uint8)
+            if self.yolo_model is None:
+                _step_yolo_cache[src_name] = (base, mask)
+                return base, mask
+            try:
+                _conf = self.sv["YOLO_Conf"].get() / 100.0
+            except Exception:
+                _conf = 0.5
+            try:
+                res = self.yolo_model(base, verbose=False, conf=_conf)[0]
+                for box in res.boxes:
+                    cid = int(box.cls[0])
+                    v = self.yolo_class_enabled.get(cid)
+                    if v is not None and not v.get():
+                        continue
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    lbl = (f"{res.names[cid]} "
+                           f"{float(box.conf[0]):.2f}")
+                    cv2.rectangle(base, (x1, y1), (x2, y2),
+                                  (0, 140, 255), 2)
+                    cv2.putText(base, lbl, (x1, max(0, y1 - 5)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                                (0, 140, 255), 1)
+                    cv2.rectangle(mask, (x1, y1), (x2, y2),
+                                  255, thickness=-1)
+            except Exception as _e:
+                print(f"[per-step yolo error] {_e}")
+            _step_yolo_cache[src_name] = (base, mask)
+            return base, mask
+
+        def _apply_yolo_mode(running_mask, step_tuple):
+            """If this step's per-step YOLO is enabled with mode
+            'focus' or 'subtract', AND/AND-NOT the running mask
+            with the YOLO box union and return the modified mask.
+            Otherwise return the running mask unchanged."""
+            try:
+                yst = (getattr(self, "_yolo_state", {}) or {}).get(
+                    id(step_tuple))
+                if yst is None or not yst["yolo_en"].get():
+                    return running_mask
+                mode = yst["yolo_mode"].get()
+                if mode not in ("focus", "subtract"):
+                    return running_mask
+                src = yst["yolo_src"].get() or "rgb_raw"
+                _, ymask = _run_yolo_for(src)
+                # Resize / coerce mask to match running_mask shape.
+                if ymask.shape != running_mask.shape:
+                    ymask = cv2.resize(ymask,
+                                       (running_mask.shape[1],
+                                        running_mask.shape[0]))
+                if mode == "focus":
+                    return cv2.bitwise_and(running_mask, ymask)
+                else:  # "subtract"
+                    return cv2.bitwise_and(running_mask,
+                                           cv2.bitwise_not(ymask))
+            except Exception as _e:
+                print(f"[yolo apply mode] {_e}")
+            return running_mask
 
         def _bgr_for_overlay(src_name, gray_fallback):
             """Return a 3-channel BGR base image for OVERLAY combine.
@@ -1023,7 +1236,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                 running = cv2.cvtColor(running, cv2.COLOR_BGR2GRAY)
             _prev = snap_steps[-1] if snap_steps else None
             if comb_en_var.get():
-                # COMBINE step: result = running ⟨op⟩ source. Morph and
+                # COMBINE step: result = running <op> source. Morph and
                 # Combine are mutually exclusive step types.
                 src_name = comb_src_var.get()
                 ref_raw  = _resolve_src(snap_steps, src_name, mask_pre)
@@ -1041,8 +1254,8 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                     # C1 paints Mask 1 (running), C2 paints Mask 2.
                     if overlay_sink is not None and branch_key is not None:
                         try:
-                            _c_running = _OV_COLORS["red"]    # Mask 1 → C1
-                            _c_m2      = _OV_COLORS["cyan"]   # Mask 2 → C2
+                            _c_running = _OV_COLORS["red"]    # Mask 1 -> C1
+                            _c_m2      = _OV_COLORS["cyan"]   # Mask 2 -> C2
                             _m2        = None
                             _base_src  = "rgb_raw"
                             if overlay_state is not None:
@@ -1065,7 +1278,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                         except Exception:
                             pass
                     return running
-                # Unknown op → fall through to AND.
+                # Unknown op -> fall through to AND.
                 return cv2.bitwise_and(running, ref)
             # MORPH step: apply Op to the running mask.
             return _apply_op(running, op_var.get(),
@@ -1096,7 +1309,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         up_overlay_store = {}   # {("name", step_idx): overlay_bgr}
         rgb_overlay_imgs = {}   # {step_idx: overlay_bgr}
         ir_overlay_imgs  = {}   # {step_idx: overlay_bgr}
-        up_step_snaps   = {}   # {"name": [step1_img, step2_img, …]}
+        up_step_snaps   = {}   # {"name": [step1_img, step2_img, ...]}
         def _run_user_pipelines():
             for _up in self.user_pipelines:
                 try:
@@ -1104,7 +1317,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                     _src  = _up["source"].get()
                     _type = _up.get("type", tk.StringVar(value="rgb")).get()
 
-                    # ── Per-branch channel detection ────────────────
+                    # -- Per-branch channel detection ----------------
                     if _type == "rgb":
                         try:
                             _bh1 = cv2.inRange(hsv[:, :, 0],
@@ -1171,7 +1384,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                             view_lookup[f"up_{_nm}_det"] = np.zeros_like(rgb_mask)
 
                     else:  # custom
-                        # No detection — pass-through. _det = source view
+                        # No detection - pass-through. _det = source view
                         # (or blank if source not yet computed).
                         _ref = view_lookup.get(_src)
                         if _ref is None:
@@ -1179,14 +1392,20 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                         view_lookup[f"up_{_nm}_det"] = _coerce_mask(
                             _ref, rgb_mask)
 
-                    # Per-branch BG subtractor — each branch owns its
+                    # Per-branch BG subtractor - each branch owns its
                     # OWN MOG2 instance with editable history/varth.
+                    # Channel can be the full BGR frame ("rgb"/"ir") or
+                    # a single HSV channel ("H"/"S"/"V") so you can
+                    # subtract drift in only the saturation (or only
+                    # hue, etc.) without colour or brightness noise.
                     if _up.get("use_bgsub") and _up["use_bgsub"].get():
                         _bg_src = _up["bgsub_src"].get()
                         _hist   = max(10, _up["bgsub_history"].get())
                         _varth  = max(1, _up["bgsub_varth"].get())
-                        _sig    = (_hist, _varth)
-                        # (Re)build the MOG2 if missing or params changed.
+                        # Channel is part of the signature: switching
+                        # H<->V means the trained model is incompatible
+                        # so we rebuild MOG2.
+                        _sig    = (_hist, _varth, _bg_src)
                         if (_up.get("_backSub") is None
                                 or _up.get("_backSub_sig") != _sig):
                             try:
@@ -1200,10 +1419,26 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                                 _up["_backSub"] = None
                         _bs = _up.get("_backSub")
                         if _bs is not None:
-                            _base = (f_rgb if _bg_src == "rgb"
-                                     else (f_ir if f_ir.ndim == 3
-                                           else cv2.cvtColor(f_ir,
-                                                cv2.COLOR_GRAY2BGR)))
+                            # Pick the input frame for MOG2:
+                            #   "rgb" -> full BGR frame
+                            #   "ir"  -> IR frame as BGR
+                            #   "H"   -> hsv[:, :, 0]   (uint8)
+                            #   "S"   -> hsv[:, :, 1]
+                            #   "V"   -> hsv[:, :, 2]
+                            if _bg_src == "rgb":
+                                _base = f_rgb
+                            elif _bg_src == "ir":
+                                _base = (f_ir if f_ir.ndim == 3
+                                         else cv2.cvtColor(f_ir,
+                                              cv2.COLOR_GRAY2BGR))
+                            elif _bg_src == "H":
+                                _base = hsv[:, :, 0]
+                            elif _bg_src == "S":
+                                _base = hsv[:, :, 1]
+                            elif _bg_src == "V":
+                                _base = hsv[:, :, 2]
+                            else:
+                                _base = f_rgb
                             try:
                                 _fg_branch = _bs.apply(_base)
                                 _fg_g = _coerce_mask(_fg_branch, rgb_mask)
@@ -1236,6 +1471,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                                 overlay_sink=up_overlay_store,
                                 overlay_state=_u_ov_st,
                             )
+                            _running = _apply_yolo_mode(_running, _ust)
                         _snaps.append(_running.copy())
                         view_lookup[f"up_{_nm}_step{_u_idx+1}"] = _running
                     view_lookup[f"up_{_nm}"] = _running
@@ -1259,6 +1495,9 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                                      branch_sink=rgb_branch_imgs, branch_key=_idx,
                                      overlay_sink=rgb_overlay_imgs,
                                      overlay_state=_ov_st)
+                # YOLO mode: focus / subtract filters the running mask
+                # by the YOLO box union (no-op if mode == box_only).
+                rgb_mask = _apply_yolo_mode(rgb_mask, _step_tup)
             snap_rgb_steps.append(rgb_mask.copy())
             view_lookup[f"rgb_step{_idx+1}"] = rgb_mask
         view_lookup["rgb_mask"] = rgb_mask
@@ -1276,6 +1515,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                                     branch_sink=ir_branch_imgs, branch_key=_idx,
                                     overlay_sink=ir_overlay_imgs,
                                     overlay_state=_ov_st)
+                ir_mask = _apply_yolo_mode(ir_mask, _step_tup)
             snap_ir_steps.append(ir_mask.copy())
             view_lookup[f"ir_step{_idx+1}"] = ir_mask
         view_lookup["ir_mask"] = ir_mask
@@ -1331,28 +1571,51 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
             ov_ir[ir_mask > 0] = [0, 255, 255]
             ir_det = cv2.addWeighted(ir_det, 0.65, ov_ir, 0.35, 0)
 
-        # YOLO
+        # YOLO - multi-class with per-class enable filter
         yolo_rgb_n = yolo_ir_n = 0
+        # Build per-class boolean mask once per frame.
+        def _class_enabled(cid):
+            v = self.yolo_class_enabled.get(int(cid))
+            return True if v is None else bool(v.get())
+
+        # Per-class binary masks (built so branches can use them via
+        # views like "yolo_class_<id>_rgb" / _ir).
+        yolo_class_masks_rgb = {}
+        yolo_class_masks_ir  = {}
+
         if self.use_yolo.get() and self.yolo_model:
             res_rgb = self.yolo_model(f_rgb, verbose=False, conf=conf_thr)[0]
-            yolo_rgb_n = len(res_rgb.boxes)
             for box in res_rgb.boxes:
+                _cid = int(box.cls[0])
+                if not _class_enabled(_cid):
+                    continue
+                yolo_rgb_n += 1
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                lbl = f"{res_rgb.names[int(box.cls[0])]} {float(box.conf[0]):.2f}"
+                lbl = f"{res_rgb.names[_cid]} {float(box.conf[0]):.2f}"
                 cv2.rectangle(rgb_det, (x1, y1), (x2, y2), (0, 140, 255), 2)
                 cv2.putText(rgb_det, lbl, (x1, max(0, y1-5)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 140, 255), 1)
+                # Per-class binary mask (filled box).
+                m = yolo_class_masks_rgb.setdefault(
+                    _cid, np.zeros(f_rgb.shape[:2], dtype=np.uint8))
+                cv2.rectangle(m, (x1, y1), (x2, y2), 255, thickness=-1)
             ir_bgr = cv2.cvtColor(ir_gray, cv2.COLOR_GRAY2BGR)
             res_ir = self.yolo_model(ir_bgr, verbose=False, conf=conf_thr)[0]
-            yolo_ir_n = len(res_ir.boxes)
             for box in res_ir.boxes:
+                _cid = int(box.cls[0])
+                if not _class_enabled(_cid):
+                    continue
+                yolo_ir_n += 1
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                lbl = f"{res_ir.names[int(box.cls[0])]} {float(box.conf[0]):.2f}"
+                lbl = f"{res_ir.names[_cid]} {float(box.conf[0]):.2f}"
                 cv2.rectangle(ir_det, (x1, y1), (x2, y2), (0, 140, 255), 2)
                 cv2.putText(ir_det, lbl, (x1, max(0, y1-5)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 140, 255), 1)
+                m = yolo_class_masks_ir.setdefault(
+                    _cid, np.zeros(ir_bgr.shape[:2], dtype=np.uint8))
+                cv2.rectangle(m, (x1, y1), (x2, y2), 255, thickness=-1)
 
-        # ── Build views dict ──────────────────────────────────────────────
+        # -- Build views dict ----------------------------------------------
         def _mask_bgr(m, color):
             out = np.zeros((*m.shape, 3), dtype=np.uint8)
             out[m > 0] = color
@@ -1398,6 +1661,79 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
             "ir_post_blur": _g2b(snap_ir_post_blur),
             "ir_det":       ir_det,
         }
+        # -- YOLO per-class masks (binary box masks, useful as
+        # combine sources or as a YOLO-branch input) -----------------
+        if self.yolo_model:
+            try:
+                _names = (self.yolo_model.names
+                          if isinstance(self.yolo_model.names, dict)
+                          else dict(enumerate(self.yolo_model.names)))
+            except Exception:
+                _names = {}
+            for _cid, _cname in _names.items():
+                _cid = int(_cid)
+                _slug = str(_cname).strip().replace(" ", "_") or f"c{_cid}"
+                _mr = yolo_class_masks_rgb.get(_cid)
+                _mi = yolo_class_masks_ir.get(_cid)
+                if _mr is None:
+                    _mr = np.zeros(f_rgb.shape[:2], dtype=np.uint8)
+                if _mi is None:
+                    _mi = np.zeros(ir_gray.shape[:2], dtype=np.uint8)
+                views[f"yolo_{_slug}_rgb"] = _mask_bgr(_mr, [0, 140, 255])
+                views[f"yolo_{_slug}_ir"]  = _mask_bgr(_mi, [0, 140, 255])
+                view_lookup[f"yolo_{_slug}_rgb"] = _mr
+                view_lookup[f"yolo_{_slug}_ir"]  = _mi
+            # "Any class" union mask (intended for YOLO branch type
+            # default) - bitwise OR across all per-class masks.
+            if yolo_class_masks_rgb:
+                _any_rgb = next(iter(yolo_class_masks_rgb.values())).copy()
+                for _m in list(yolo_class_masks_rgb.values())[1:]:
+                    _any_rgb = cv2.bitwise_or(_any_rgb, _m)
+            else:
+                _any_rgb = np.zeros(f_rgb.shape[:2], dtype=np.uint8)
+            if yolo_class_masks_ir:
+                _any_ir = next(iter(yolo_class_masks_ir.values())).copy()
+                for _m in list(yolo_class_masks_ir.values())[1:]:
+                    _any_ir = cv2.bitwise_or(_any_ir, _m)
+            else:
+                _any_ir = np.zeros(ir_gray.shape[:2], dtype=np.uint8)
+            views["yolo_any_rgb"]      = _mask_bgr(_any_rgb, [0, 140, 255])
+            views["yolo_any_ir"]       = _mask_bgr(_any_ir,  [0, 140, 255])
+            view_lookup["yolo_any_rgb"] = _any_rgb
+            view_lookup["yolo_any_ir"]  = _any_ir
+
+        # Per-step YOLO add-on emit. The helpers
+        # (_resolve_bgr_view, _run_yolo_for, _step_yolo_cache) were
+        # defined earlier so they could be used at step time for
+        # focus / subtract modes — re-using the same cache here
+        # avoids duplicate inference on the same source view.
+
+        def _emit_step_yolo(step_tuple, vid_prefix):
+            """If the step's per-step YOLO is enabled, write its two
+            views into the views dict (and the mask into view_lookup)."""
+            try:
+                yst = (getattr(self, "_yolo_state", {}) or {}).get(
+                    id(step_tuple))
+                if yst is None or not yst["yolo_en"].get():
+                    return
+                src = yst["yolo_src"].get() or "rgb_raw"
+                boxed, mask = _run_yolo_for(src)
+                views[f"{vid_prefix}_yolo"]      = boxed
+                views[f"{vid_prefix}_yolo_mask"] = _mask_bgr(
+                    mask, [0, 140, 255])
+                view_lookup[f"{vid_prefix}_yolo_mask"] = mask
+            except Exception as _e:
+                print(f"[step-yolo emit] {_e}")
+
+        for _i, _st in enumerate(self.rgb_pipeline):
+            _emit_step_yolo(_st, f"rgb_step{_i+1}")
+        for _i, _st in enumerate(self.ir_pipeline):
+            _emit_step_yolo(_st, f"ir_step{_i+1}")
+        for _up in self.user_pipelines:
+            _nm = _up["name"].get().strip() or "branch"
+            for _i, _st in enumerate(_up["steps"]):
+                _emit_step_yolo(_st, f"up_{_nm}_step{_i+1}")
+
         # Dynamic step views (only as many as the current pipeline length)
         for _i, _s in enumerate(snap_rgb_steps):
             views[f"rgb_step{_i+1}"] = _mask_bgr(_s, [0, 0, 255])
@@ -1408,7 +1744,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
             views[f"rgb_step{_i+1}_branch"] = _mask_bgr(_br, [255, 128, 255])
         for _i, _br in ir_branch_imgs.items():
             views[f"ir_step{_i+1}_branch"] = _mask_bgr(_br, [255, 128, 128])
-        # OVERLAY combine views — these are ALREADY BGR images
+        # OVERLAY combine views - these are ALREADY BGR images
         # (raw + mask painted on top), so DO NOT pass them through
         # _mask_bgr (which expects a single-channel mask).
         for _i, _ov in rgb_overlay_imgs.items():
@@ -1416,10 +1752,10 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         for _i, _ov in ir_overlay_imgs.items():
             views[f"ir_step{_i+1}_overlay"] = _ov
 
-        # ── Build the composite "RAW + MASK → OVERLAY" view per OVERLAY step ──
+        # -- Build the composite "RAW + MASK -> OVERLAY" view per OVERLAY step --
         from cv2 import FONT_HERSHEY_SIMPLEX as _F
-        _OV_GLYPH = 64           # width (px) of each operator band — wide
-                                  # enough that "+" / "→" never crowd
+        _OV_GLYPH = 64           # width (px) of each operator band - wide
+                                  # enough that "+" / "->" never crowd
                                   # the adjacent sub-images.
 
         def _to_bgr(im):
@@ -1447,9 +1783,9 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
 
         def _make_composite(operands, overlay_bgr,
                             tile_w=FC_W, tile_h=FC_H):
-            """Build a composite [op1][+][op2][+]…[→][overlay].
+            """Build a composite [op1][+][op2][+]...[->][overlay].
             `operands` is a list of BGR/gray images (mask1 first, then
-            optional mask2, then optional base). Always ≥1 item."""
+            optional mask2, then optional base). Always >=1 item."""
             tiles = []
             for i, op in enumerate(operands):
                 if i:
@@ -1523,7 +1859,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                 pass
 
 
-        # ── User pipelines (parallel branches) — POST-pass ────────────────
+        # -- User pipelines (parallel branches) - POST-pass ----------------
         # Re-run after rgb/ir so any user-pipeline step that combines
         # with rgb_step{N} / ir_step{N} now sees those values too.
         _run_user_pipelines()
@@ -1600,10 +1936,10 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         for (_nm, _u_idx), _br in up_branch_store.items():
             views[f"up_{_nm}_step{_u_idx+1}_branch"] = \
                 _mask_bgr(_br, [255, 128, 255])
-        # OVERLAY views for branch combine steps — already BGR.
+        # OVERLAY views for branch combine steps - already BGR.
         for (_nm, _u_idx), _ov in up_overlay_store.items():
             views[f"up_{_nm}_step{_u_idx+1}_overlay"] = _ov
-            # Composite "raw + mask → overlay" for this branch step.
+            # Composite "raw + mask -> overlay" for this branch step.
             try:
                 _step = None
                 _snaps = up_step_snaps.get(_nm, [])
@@ -1621,7 +1957,7 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
             except Exception:
                 pass
 
-        # ── Combine view (A AND/OR/XOR B) ────────────────────────────────
+        # -- Combine view (A AND/OR/XOR B) --------------------------------
         try:
             _ca   = self.combine_a_var.get()
             _cb   = self.combine_b_var.get()
@@ -1642,20 +1978,20 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
         except Exception:
             views["combined"] = _blank
 
-        # ── Update main panels ────────────────────────────────────────────
+        # -- Update main panels --------------------------------------------
         for key, lbl in self.panels.items():
             view_name = self.panel_view[key].get()
             img = views.get(view_name, views.get(key, _blank))
             self._put(lbl, img, bgr=True)
 
-        # ── Update All-Masks window ───────────────────────────────────────
+        # -- Update All-Masks window ---------------------------------------
         if self.all_masks_win and self.all_masks_win.winfo_exists():
             fc_sz = getattr(self, "_all_masks_img_size", (FC_W, FC_H))
             for view_name, lbl in self.all_masks_labels.items():
                 # Aliased keys carry the actual view name after "@".
-                #   "<step>__img1@<view>" or "<step>__img2@<view>"     → small
-                #   "<step>__cmp@<view>"                               → wide (3× FC_W)
-                #   "<branch>__input@<view>" / other "@<view>" keys    → full FC_W×FC_H
+                #   "<step>__img1@<view>" or "<step>__img2@<view>"     -> small
+                #   "<step>__cmp@<view>"                               -> wide (3x FC_W)
+                #   "<branch>__input@<view>" / other "@<view>" keys    -> full FC_WxFC_H
                 if "__img" in view_name:
                     _vn = view_name.split("@", 1)[1]
                     _sz = (max(28, fc_sz[0] // 3 - 4),
@@ -1681,9 +2017,9 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
             # Step-label formatter shared across rgb/ir/user pipelines.
             def _step_lbl(i, en, op_v, cen, cop_v, csr_v):
                 if not en.get():
-                    return f"S{i+1}: —"
+                    return f"S{i+1}: -"
                 if cen.get():
-                    return f"S{i+1}: ⊕{cop_v.get()}({csr_v.get()})"
+                    return f"S{i+1}: +{cop_v.get()}({csr_v.get()})"
                 return f"S{i+1}: {op_v.get()}"
 
             # Live-update step node label text
@@ -1706,21 +2042,27 @@ class VideoAnalyzer(PipelineUIMixin, FlowchartMixin, UserPipelinesMixin):
                         self.all_masks_step_labels[_k].config(
                             text=_step_lbl(_i, _en, _op, _cen, _cop, _csr))
 
-        # ── Zoom window ──────────────────────────────────────────────────
-        if self._zoom_win and self._zoom_win.winfo_exists() and self._zoom_view:
-            zoom_img = views.get(self._zoom_view, _blank)
-            # Composite views (4-tile OVERLAY) are wide. Render at
-            # native aspect so all sub-images stay readable.
-            if self._zoom_view.endswith("_composite"):
+        # -- Zoom windows --------------------------------------------------
+        # Multiple zoom windows can be open at once; each lives at
+        # self._zoom_wins[view_name]. Re-render each one and store its
+        # source image so the hover-readout can read native pixel
+        # values.
+        for _vn, _z in list(getattr(self, "_zoom_wins", {}).items()):
+            if not _z["win"].winfo_exists():
+                self._zoom_wins.pop(_vn, None)
+                continue
+            zoom_img = views.get(_vn, _blank)
+            _z["src_img"] = zoom_img
+            if _vn.endswith("_composite"):
                 _zh = 360
                 _zw = int(zoom_img.shape[1] * _zh / zoom_img.shape[0]) \
                        if zoom_img.ndim >= 2 and zoom_img.shape[0] > 0 else 1280
                 _zw = min(_zw, 1600)
-                self._put(self._zoom_label, zoom_img, bgr=True, size=(_zw, _zh))
+                self._put(_z["label"], zoom_img, bgr=True, size=(_zw, _zh))
             else:
-                self._put(self._zoom_label, zoom_img, bgr=True, size=(640, 480))
+                self._put(_z["label"], zoom_img, bgr=True, size=(640, 480))
 
-        # ── Recording ────────────────────────────────────────────────────
+        # -- Recording ----------------------------------------------------
         if self.recording and self.writers:
             vsz = (640, 480)
             rgb_md = _mask_bgr(rgb_mask, [0, 0, 255])

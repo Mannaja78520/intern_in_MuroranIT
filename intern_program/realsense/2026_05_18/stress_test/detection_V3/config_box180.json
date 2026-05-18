@@ -1,0 +1,1955 @@
+{
+  "version": 1,
+  "params": {
+    "H1_low": 0,
+    "H1_high": 10,
+    "H2_low": 160,
+    "H2_high": 180,
+    "S_min": 80,
+    "S_max": 255,
+    "V_min": 40,
+    "V_max": 255,
+    "A_min": 150,
+    "A_max": 255,
+    "B_min": 0,
+    "B_max": 255,
+    "BG_hist_rgb": 500,
+    "BG_var_rgb": 50,
+    "IR_thresh": 100,
+    "BG_hist_ir": 500,
+    "BG_var_ir": 50,
+    "YOLO_Conf": 50,
+    "YOLO_Box_Scale": 180,
+    "YOLO_Box_Pad": 0,
+    "Min_area": 20
+  },
+  "flags": {
+    "use_bgsub_rgb": true,
+    "use_bgsub_ir": true,
+    "show_boxes": true,
+    "show_overlay": true,
+    "use_yolo": true,
+    "loop_var": false,
+    "use_clahe_ir": false
+  },
+  "ints": {
+    "clahe_ir_clip": 2,
+    "clahe_ir_tile": 8
+  },
+  "strings": {
+    "rgb_detect_mode": "Color (HSV hue)",
+    "ir_cmap": "Gray",
+    "kernel_shape": "Rect",
+    "rgb_mask_color": "#ff0000",
+    "ir_mask_color": "#ffff00",
+    "yolo_mask_color": "#ff00ff",
+    "bgsub_rgb_src": "auto",
+    "bgsub_ir_src": "auto",
+    "combine_a": "rgb_mask",
+    "combine_b": "ir_raw",
+    "combine_op": "OVERLAY",
+    "combine_c1": "cyan",
+    "combine_c2": "orange"
+  },
+  "rgb_pipeline": [
+    {
+      "en": true,
+      "op": "Close",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Open",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Erode",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 0,
+      "comb_en": true,
+      "comb_op": "OR",
+      "comb_src": "mask_pre"
+    },
+    {
+      "en": true,
+      "op": "TopHat",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "BlackHat",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "MedianBlur",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 0,
+      "comb_en": true,
+      "comb_op": "OR",
+      "comb_src": "mask_pre"
+    },
+    {
+      "en": true,
+      "op": "Invert",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "FillHoles",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Thresh_Otsu",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Close",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 0,
+      "comb_en": true,
+      "comb_op": "OR",
+      "comb_src": "mask_pre"
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Erode",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Gradient",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "TopHat",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 0,
+      "comb_en": true,
+      "comb_op": "OR",
+      "comb_src": "mask_pre"
+    }
+  ],
+  "ir_pipeline": [
+    {
+      "en": true,
+      "op": "Close",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Open",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Erode",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 0,
+      "comb_en": true,
+      "comb_op": "OR",
+      "comb_src": "mask_pre"
+    },
+    {
+      "en": true,
+      "op": "TopHat",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "BlackHat",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "MedianBlur",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 0,
+      "comb_en": true,
+      "comb_op": "OR",
+      "comb_src": "mask_pre"
+    },
+    {
+      "en": true,
+      "op": "Invert",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "FillHoles",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Thresh_Otsu",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Close",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 0,
+      "comb_en": true,
+      "comb_op": "OR",
+      "comb_src": "mask_pre"
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Erode",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Gradient",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "TopHat",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 120
+    },
+    {
+      "en": true,
+      "op": "Dilate",
+      "n": 1,
+      "dir": "Both",
+      "kx": 3,
+      "ky": 3,
+      "t": 0,
+      "comb_en": true,
+      "comb_op": "OR",
+      "comb_src": "mask_pre"
+    }
+  ],
+  "rgb_pre_pipeline": [
+    {
+      "en": true,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "MedianBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "BilateralBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "CLAHE",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Gamma",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Sharpen",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Normalize",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "HistEq",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "MedianBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "BilateralBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "CLAHE",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Gamma",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Sharpen",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Normalize",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "HistEq",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "MedianBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "BilateralBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "CLAHE",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    }
+  ],
+  "ir_pre_pipeline": [
+    {
+      "en": true,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "MedianBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "BilateralBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "CLAHE",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Gamma",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Sharpen",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Normalize",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "HistEq",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "MedianBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "BilateralBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "CLAHE",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Gamma",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Sharpen",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "Normalize",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "HistEq",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "GaussBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "MedianBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "BilateralBlur",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    },
+    {
+      "en": true,
+      "op": "CLAHE",
+      "n": 1,
+      "dir": "XY",
+      "kx": 5,
+      "ky": 5,
+      "t": 0
+    }
+  ],
+  "user_pipelines": [
+    {
+      "name": "maxrgb",
+      "type": "rgb",
+      "steps": [
+        {
+          "en": true,
+          "op": "Close",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Open",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Erode",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        },
+        {
+          "en": true,
+          "op": "TopHat",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "BlackHat",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        },
+        {
+          "en": true,
+          "op": "Invert",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "FillHoles",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Thresh_Otsu",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Close",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Erode",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Gradient",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "TopHat",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        }
+      ],
+      "pre_steps": [
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "BilateralBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "CLAHE",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Gamma",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Sharpen",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Normalize",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "HistEq",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "BilateralBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "CLAHE",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Gamma",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Sharpen",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Normalize",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "HistEq",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "BilateralBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "CLAHE",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        }
+      ],
+      "channels": "HSVab"
+    },
+    {
+      "name": "maxir",
+      "type": "ir",
+      "steps": [
+        {
+          "en": true,
+          "op": "Close",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Open",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Erode",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        },
+        {
+          "en": true,
+          "op": "TopHat",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "BlackHat",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        },
+        {
+          "en": true,
+          "op": "Invert",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "FillHoles",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Thresh_Otsu",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Close",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Erode",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Gradient",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "TopHat",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        }
+      ],
+      "pre_steps": [
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "BilateralBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "CLAHE",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Gamma",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Sharpen",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Normalize",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "HistEq",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "BilateralBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "CLAHE",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Gamma",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Sharpen",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Normalize",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "HistEq",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "BilateralBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "CLAHE",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        }
+      ]
+    },
+    {
+      "name": "maxcustom",
+      "type": "custom",
+      "steps": [
+        {
+          "en": true,
+          "op": "Close",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Open",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Erode",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        },
+        {
+          "en": true,
+          "op": "TopHat",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "BlackHat",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        },
+        {
+          "en": true,
+          "op": "Invert",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "FillHoles",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Thresh_Otsu",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Close",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Erode",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Gradient",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "TopHat",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 120
+        },
+        {
+          "en": true,
+          "op": "Dilate",
+          "n": 1,
+          "dir": "Both",
+          "kx": 3,
+          "ky": 3,
+          "t": 0,
+          "comb_en": true,
+          "comb_op": "OR",
+          "comb_src": "mask_pre"
+        }
+      ],
+      "pre_steps": [
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "BilateralBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "CLAHE",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Gamma",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Sharpen",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Normalize",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "HistEq",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "BilateralBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "CLAHE",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Gamma",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Sharpen",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "Normalize",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "HistEq",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "GaussBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "MedianBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "BilateralBlur",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        },
+        {
+          "en": true,
+          "op": "CLAHE",
+          "n": 1,
+          "dir": "XY",
+          "kx": 5,
+          "ky": 5,
+          "t": 0
+        }
+      ],
+      "source": "rgb_mask"
+    }
+  ],
+  "export_yolo": {
+    "enabled": true,
+    "model_path": "/home/mannaja/intern_in_MuroranIT/intern_program/models/drone_t_hook.pt",
+    "conf": 0.5
+  }
+}

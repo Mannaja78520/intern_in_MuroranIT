@@ -52,7 +52,7 @@ class FlowchartMixin:
     # All-Masks window: build
     # ------------------------------------------------------------------
     def _open_all_masks_window(self):
-        # ── Layout constants ──────────────────────────────────────────
+        # -- Layout constants ------------------------------------------
         CW  = FC_W + 4              # node frame width
         CH  = FC_H + 22             # node frame height
         HS  = CW + 44               # horizontal step
@@ -70,7 +70,7 @@ class FlowchartMixin:
         n_ir  = len(self.ir_pipeline)
 
         # OVERLAY-aware step positioning. An OVERLAY step occupies 3
-        # grid columns visually (since its composite thumbnail is 3×
+        # grid columns visually (since its composite thumbnail is 3x
         # FC_W wide), so the next step in the same row must start 3
         # cells later. Returns a list of (col, row) per step index.
         def _overlay_w_for(step_tuple):
@@ -126,7 +126,7 @@ class FlowchartMixin:
         rgb_out = _last_row_after(self.rgb_pipeline, STEP_ROW_BASE)
         ir_out  = _last_row_after(self.ir_pipeline,  1)
 
-        # ── Node lists ────────────────────────────────────────────────
+        # -- Node lists ------------------------------------------------
         rgb_nodes = [
             ("rgb_raw",       0, 0, " 1  Input"),
             ("rgb_blur",      1, 0, " 2  Blur*"),
@@ -169,7 +169,7 @@ class FlowchartMixin:
             ("ir_det",        YOLO_COL, ir_out, "24  Detection"),
         ]
 
-        # ── Edges ─────────────────────────────────────────────────────
+        # -- Edges -----------------------------------------------------
         def _step_edges(prefix, n):
             edges = []
             pre = f"{prefix}_mask_pre"
@@ -215,7 +215,7 @@ class FlowchartMixin:
             ("_yolo_ir",     "ir_det"),
         ]
 
-        # Combine edges: arrows from a source mask → step when combine ON
+        # Combine edges: arrows from a source mask -> step when combine ON
         def _combine_edges(prefix, pipeline):
             cedges = []
             for i, step in enumerate(pipeline):
@@ -236,7 +236,7 @@ class FlowchartMixin:
                 else:
                     src_node = f"{prefix}_mask_pre"
                 cedges.append((src_node, f"{prefix}_step{i+1}",
-                               f"⊕{_cop.get()}", "combine"))
+                               f"+{_cop.get()}", "combine"))
             return cedges
 
         rgb_edges += _combine_edges("rgb", self.rgb_pipeline)
@@ -257,7 +257,7 @@ class FlowchartMixin:
                 if _s[7].get():
                     combine_active.add(f"up_{_nm}_step{_i+1}")
 
-        # ── Build per-user-pipeline section descriptors ──────────────
+        # -- Build per-user-pipeline section descriptors --------------
         # Each entry: (nodes, edges, title, hdr_bg, node_bg, n_steps, color)
         up_sections = []
         for up in user_pipes:
@@ -269,8 +269,64 @@ class FlowchartMixin:
                             if up_positions else 1)
             _input_id   = f"up_{_nm}__input"
             _output_id  = f"up_{_nm}"
+
+            # -- Channel-origin & per-channel-mask thumbnails ------
+            # When the branch is RGB type and the user has selected
+            # certain HSV channels, show the channel SOURCE image and
+            # the channel's binary MASK in the input row (cols 1+).
+            # When BG sub is enabled, show its FG mask too.
+            _info_nodes = []
+            try:
+                _btype = up.get("type").get() if up.get("type") else ""
+                _ch_mode = (up.get("channels").get()
+                            if up.get("channels") else "")
+                _show_bg = (up.get("use_bgsub")
+                            and up["use_bgsub"].get())
+                col_cursor = 1
+                if _btype == "rgb":
+                    if "H" in _ch_mode or _ch_mode == "full":
+                        _info_nodes.append(
+                            (f"_info_{_nm}_h_src",
+                             col_cursor, 0, "H channel"))
+                        _info_nodes.append(
+                            (f"_info_{_nm}_h_mask",
+                             col_cursor + 1, 0, "H mask (det)"))
+                        col_cursor += 2
+                    if "S" in _ch_mode or _ch_mode == "full":
+                        _info_nodes.append(
+                            (f"_info_{_nm}_s_src",
+                             col_cursor, 0, "S channel"))
+                        _info_nodes.append(
+                            (f"_info_{_nm}_s_mask",
+                             col_cursor + 1, 0, "S mask (det)"))
+                        col_cursor += 2
+                    if "V" in _ch_mode or _ch_mode == "full":
+                        _info_nodes.append(
+                            (f"_info_{_nm}_v_src",
+                             col_cursor, 0, "V channel"))
+                        _info_nodes.append(
+                            (f"_info_{_nm}_v_mask",
+                             col_cursor + 1, 0, "V mask (det)"))
+                        col_cursor += 2
+                elif _btype == "ir":
+                    _info_nodes.append(
+                        (f"_info_{_nm}_ir_src",
+                         col_cursor, 0, "IR frame"))
+                    _info_nodes.append(
+                        (f"_info_{_nm}_ir_mask",
+                         col_cursor + 1, 0, "IR mask (det)"))
+                    col_cursor += 2
+                if _show_bg:
+                    _info_nodes.append(
+                        (f"_info_{_nm}_bgsub",
+                         col_cursor, 0, "BG-sub FG"))
+                    col_cursor += 1
+            except Exception:
+                _info_nodes = []
+
             nodes_up = [
-                (_input_id, 0, 0, f"src ← {_src}"),
+                (_input_id, 0, 0, f"src <- {_src}"),
+                *_info_nodes,
                 *[(f"up_{_nm}_step{i+1}",
                    up_positions[i][0],
                    up_positions[i][1],
@@ -279,7 +335,7 @@ class FlowchartMixin:
                 # Output sits bottom-right (col YOLO_COL) like the
                 # main RGB/IR pipelines' Detection node.
                 (_output_id, YOLO_COL, _out_row_up,
-                 f"out → up_{_nm}"),
+                 f"out -> up_{_nm}"),
             ]
             edges_up = []
             if _n > 0:
@@ -312,18 +368,18 @@ class FlowchartMixin:
                     # an annotation on the step rather than an arrow.
                     continue
                 edges_up.append((src_node, f"up_{_nm}_step{i+1}",
-                                 f"⊕{_cop.get()}", "combine"))
+                                 f"+{_cop.get()}", "combine"))
             up_sections.append({
                 "name":  _nm,
                 "nodes": nodes_up,
                 "edges": edges_up,
                 "out_row": _out_row_up,
-                "title": f"━━━━━━━━━  Pipeline: {_nm}  (src ← {_src})  ━━━━━━━━━",
+                "title": f"---------  Pipeline: {_nm}  (src <- {_src})  ---------",
                 "hdr_bg":  "#5c2a7a",   # purple for user pipelines
                 "node_bg": "#1f1130",
             })
 
-        # ── Canvas sizing ─────────────────────────────────────────────
+        # -- Canvas sizing ---------------------------------------------
         # Combine-active rows are taller; OVERLAY-active rows are taller
         # still. Count both per-section so the next row never overlaps
         # the bottom of any node above it.
@@ -376,12 +432,12 @@ class FlowchartMixin:
         canvas_h = (_cursor_y if up_sections
                     else ir_y0 + _section_height(ir_nodes, ir_out)) + MY
 
-        # ── Toplevel + scrollable canvas ──────────────────────────────
+        # -- Toplevel + scrollable canvas ------------------------------
         if self.all_masks_win and self.all_masks_win.winfo_exists():
             self.all_masks_win.destroy()
 
         win = tk.Toplevel(self.root)
-        win.title("Pipeline Flow — All Masks   (* = blur position selectable)")
+        win.title("Pipeline Flow - All Masks   (* = blur position selectable)")
         win.protocol("WM_DELETE_WINDOW", self._toggle_all_masks_window)
         self.all_masks_win         = win
         self.all_masks_labels      = {}
@@ -403,11 +459,11 @@ class FlowchartMixin:
         fc.bind("<Button-5>",   lambda e: fc.yview_scroll(1,  "units"))
         fc.bind("<MouseWheel>", lambda e: fc.yview_scroll(int(-1*e.delta/120), "units"))
 
-        # ── Drawing helpers ───────────────────────────────────────────
+        # -- Drawing helpers -------------------------------------------
         def _draw_edge_label(canvas, x, y, text):
             clr = ("#44ff44" if text == "OR"
                    else "#ff7744" if text == "AND"
-                   else "#bb66ff" if text.startswith("⊕")
+                   else "#bb66ff" if text.startswith("+")
                    else "#ffff44")
             canvas.create_oval(x - 20, y - 10, x + 20, y + 10,
                                fill="#222222", outline=clr, width=2)
@@ -461,7 +517,7 @@ class FlowchartMixin:
             vertical space."""
             comb_extra = (FC_H // 3) + 70
             max_row = max((r for _, _, r, _ in nodes), default=0)
-            # AND/OR/XOR combine rows only — exclude OVERLAY rows since
+            # AND/OR/XOR combine rows only - exclude OVERLAY rows since
             # OVERLAY nodes are now compact in height.
             comb_rows = {r for vid, _, r, _ in nodes
                          if (comb_active and vid in comb_active
@@ -582,16 +638,16 @@ class FlowchartMixin:
                     frm = tk.Frame(fc, bg=bg, highlightbackground=hl,
                                    highlightthickness=1)
                     # Heights:
-                    #   plain step  → CH
-                    #   combine     → CH + small_row + caption + slack
-                    #   overlay     → combine height + full overlay thumb
+                    #   plain step  -> CH
+                    #   combine     -> CH + small_row + caption + slack
+                    #   overlay     -> combine height + full overlay thumb
                     _SMALL_H = max(28, FC_H // 3)
                     _comb_extra = _SMALL_H + 70             # small row + caption
                     # OVERLAY: single composite thumbnail whose width
                     # adapts to the tile count for this step:
-                    #   2 tiles = Mask 1 → overlay
-                    #   3 tiles = Mask 1 + (Mask 2 or Base) → overlay
-                    #   4 tiles = Mask 1 + Mask 2 + Base → overlay
+                    #   2 tiles = Mask 1 -> overlay
+                    #   3 tiles = Mask 1 + (Mask 2 or Base) -> overlay
+                    #   4 tiles = Mask 1 + Mask 2 + Base -> overlay
                     _OV_GLYPH = 64
                     if is_overlay:
                         _ov_count = self._overlay_count_for_vid(vid)
@@ -625,7 +681,7 @@ class FlowchartMixin:
                     frm.pack_propagate(False)
 
                     def _make_thumb(parent, w=FC_W, h=FC_H):
-                        """Create a placeholder-filled label of pixel size w×h."""
+                        """Create a placeholder-filled label of pixel size wxh."""
                         lbl = tk.Label(parent, bg="#000000", cursor="hand2")
                         try:
                             _ph = tk.PhotoImage(width=w, height=h)
@@ -651,10 +707,57 @@ class FlowchartMixin:
                         img_lbl.bind("<Button-1>",
                                      lambda e, v=_src_view: self._open_zoom(v))
                         self.all_masks_labels[f"{vid}@{_src_view}"] = img_lbl
+                    elif vid.startswith("_info_"):
+                        # Channel-info / per-channel-mask / bgsub-fg
+                        # thumbnail. Map vid -> view name and register
+                        # an @-aliased label.
+                        _bare = vid[len("_info_"):]
+                        # _bare format: "<branch>_<chan>_<kind>"
+                        # where kind in {"src", "mask"} and chan in
+                        # {"h", "s", "v", "ir", "bgsub"}.
+                        _kind = _bare.rsplit("_", 1)[-1]
+                        _rest = _bare[: -(len(_kind) + 1)]
+                        # Branch name is everything before the channel.
+                        _chan_keys = ("h", "s", "v", "ir")
+                        _ch = None
+                        _bnm = _rest
+                        for _ck in _chan_keys:
+                            if _rest.endswith("_" + _ck):
+                                _ch = _ck
+                                _bnm = _rest[: -(len(_ck) + 1)]
+                                break
+                        # bgsub special case (no kind suffix).
+                        if vid.endswith("_bgsub"):
+                            _bnm = _bare[: -len("_bgsub")]
+                            _view = f"up_{_bnm}_bgsub"
+                            _label = "BG-sub FG"
+                        elif _ch in ("h", "s", "v") and _kind == "src":
+                            _view = f"rgb_hsv_{_ch.upper()}"
+                            _label = f"{_ch.upper()} channel"
+                        elif _ch in ("h", "s", "v") and _kind == "mask":
+                            # Use h1_mask for H detection (the detection
+                            # already AND-merges H1+H2 into _det; we
+                            # just show H1 here as the primary).
+                            _suffix = ("h1_mask" if _ch == "h"
+                                       else f"{_ch}_mask")
+                            _view = f"up_{_bnm}_{_suffix}"
+                            _label = f"{_ch.upper()} mask"
+                        elif _ch == "ir" and _kind == "src":
+                            _view = "ir_raw"
+                            _label = "IR frame"
+                        elif _ch == "ir" and _kind == "mask":
+                            _view = f"up_{_bnm}_ir_mask"
+                            _label = "IR mask"
+                        else:
+                            _view = "rgb_raw"
+                            _label = vid
+                        img_lbl.bind("<Button-1>",
+                                     lambda e, v=_view: self._open_zoom(v))
+                        self.all_masks_labels[f"{vid}@{_view}"] = img_lbl
                     elif is_overlay:
                         # OVERLAY: register under a count-aware alias
                         # so the update loop knows the composite width.
-                        # Click → zoom shows the wide composite so the
+                        # Click -> zoom shows the wide composite so the
                         # user can see Mask 1 + Mask 2 + Base + result
                         # all at once.
                         _comp_view = f"{vid}_composite"
@@ -709,12 +812,12 @@ class FlowchartMixin:
                             _img1_view = f"{_channel}_mask_pre"
                         _branch_view = f"{vid}_branch"
 
-                    # OVERLAY: nothing extra — the single thumbnail
+                    # OVERLAY: nothing extra - the single thumbnail
                     # (img_lbl) renders the composite view that the
                     # _process update loop populates.
 
                     # AND/OR/XOR combine (not OVERLAY): small
-                    # img1 ⊕op img2 row beneath the main thumbnail.
+                    # img1 +op img2 row beneath the main thumbnail.
                     if is_comb and not is_overlay:
                         cmb_row = tk.Frame(frm, bg=bg)
                         cmb_row.pack(padx=1, pady=(2, 1))
@@ -729,7 +832,7 @@ class FlowchartMixin:
                                       self._open_zoom(v))
                         self.all_masks_labels[
                             f"{vid}__img1@{_img1_view}"] = img1
-                        tk.Label(cmb_row, text=f"⊕{_cop}",
+                        tk.Label(cmb_row, text=f"+{_cop}",
                                  font=("Arial", 8, "bold"),
                                  bg=bg, fg="#bb66ff"
                                  ).pack(side="left", padx=2)
@@ -744,17 +847,17 @@ class FlowchartMixin:
                             f"{vid}__img2@{_branch_view}"] = img2
                         tk.Label(frm,
                                  text=(f"img1 (prev) {_cop} img2 "
-                                       f"(src⊕Op)  →  result above"),
+                                       f"(src+Op)  ->  result above"),
                                  font=("Arial", 6),
                                  bg=bg, fg="#888888"
                                  ).pack(pady=(0, 1))
 
         draw_section(rgb_nodes, rgb_edges, rgb_y0,
-                     "━━━━━━━━━━━━━━━  RGB Pipeline  ━━━━━━━━━━━━━━━",
+                     "---------------  RGB Pipeline  ---------------",
                      "#2b4f7a", "#1a2535", "#888888", "#ff8800",
                      comb_active=combine_active)
         draw_section(ir_nodes, ir_edges, ir_y0,
-                     "━━━━━━━━━━━━━━━━  IR Pipeline  ━━━━━━━━━━━━━━━━",
+                     "----------------  IR Pipeline  ----------------",
                      "#1a5c2a", "#141f14", "#888888", "#ff8800",
                      comb_active=combine_active)
         for sec, y0 in zip(up_sections, up_y0s):
@@ -768,28 +871,129 @@ class FlowchartMixin:
     # Zoom window (click any thumbnail in All Masks)
     # ------------------------------------------------------------------
     def _open_zoom(self, view_name):
-        if self._zoom_win and self._zoom_win.winfo_exists():
+        """Open (or focus) a zoom window for `view_name`.
+        Multiple zoom windows can be open at once — clicking the
+        same thumbnail again toggles its window closed."""
+        if not hasattr(self, "_zoom_wins"):
+            self._zoom_wins = {}
+        existing = self._zoom_wins.get(view_name)
+        if existing is not None and existing["win"].winfo_exists():
+            # Toggle: clicking the same thumbnail closes the window.
+            existing["win"].destroy()
+            self._zoom_wins.pop(view_name, None)
+            # Update legacy aliases.
             if self._zoom_view == view_name:
-                self._zoom_win.destroy()
                 self._zoom_win = self._zoom_label = self._zoom_view = None
-                return
-            self._zoom_view = view_name
-            self._zoom_win.title(f"Zoom — {view_name}")
-            if self._last_f_rgb is not None:
-                self._refresh()
             return
+
         win = tk.Toplevel(self.root)
-        win.title(f"Zoom — {view_name}")
+        win.title(f"Zoom - {view_name}")
         win.resizable(True, True)
-        win.protocol("WM_DELETE_WINDOW", self._close_zoom)
+        win.protocol(
+            "WM_DELETE_WINDOW",
+            lambda v=view_name: self._close_zoom(v))
+        lbl = tk.Label(win, bg="black")
+        lbl.pack(fill="both", expand=True)
+        readout = tk.Label(
+            win, text="(hover the image to read pixel values)",
+            font=("Courier", 9), bg="#111111", fg="#cccccc",
+            anchor="w", padx=6, pady=2)
+        readout.pack(fill="x", side="bottom")
+        entry = {
+            "win":     win,
+            "label":   lbl,
+            "readout": readout,
+            "src_img": None,
+        }
+        self._zoom_wins[view_name] = entry
+        lbl.bind("<Motion>",
+                 lambda e, v=view_name: self._on_zoom_hover(e, v))
+        lbl.bind("<Leave>",
+                 lambda e, v=view_name: self._on_zoom_leave(v))
+        # Legacy single-window aliases — most-recently-opened window
+        # wins. Existing code that pokes self._zoom_label keeps working.
         self._zoom_win   = win
+        self._zoom_label = lbl
         self._zoom_view  = view_name
-        self._zoom_label = tk.Label(win, bg="black")
-        self._zoom_label.pack(fill="both", expand=True)
+
         if self._last_f_rgb is not None:
             self._refresh()
 
-    def _close_zoom(self):
+    def _on_zoom_leave(self, view_name=None, _event=None):
+        if view_name is None:
+            return
+        z = (getattr(self, "_zoom_wins", {}) or {}).get(view_name)
+        if z and z["readout"].winfo_exists():
+            z["readout"].config(
+                text="(hover the image to read pixel values)")
+
+    def _on_zoom_hover(self, event, view_name):
+        """Translate the cursor's pixel position inside this window's
+        zoom label into ORIGINAL image coordinates and read the pixel
+        value(s). Shows BGR + HSV for 3-channel views, gray for masks."""
+        z = (getattr(self, "_zoom_wins", {}) or {}).get(view_name)
+        if z is None or not z["readout"].winfo_exists():
+            return
+        readout = z["readout"]
+        lbl     = z["label"]
+        try:
+            ph = lbl.imgtk
+            disp_w = ph.width()
+            disp_h = ph.height()
+        except Exception:
+            return
+        lbl_w = lbl.winfo_width()
+        lbl_h = lbl.winfo_height()
+        ox = (lbl_w - disp_w) // 2 if lbl_w > disp_w else 0
+        oy = (lbl_h - disp_h) // 2 if lbl_h > disp_h else 0
+        cx = event.x - ox
+        cy = event.y - oy
+        if cx < 0 or cy < 0 or cx >= disp_w or cy >= disp_h:
+            readout.config(text="(out of image)")
+            return
+        src = z.get("src_img")
+        if src is None:
+            readout.config(
+                text=f"display x={cx} y={cy}  (no source available)")
+            return
+        sh, sw = src.shape[:2]
+        sx = int(cx * sw / max(1, disp_w))
+        sy = int(cy * sh / max(1, disp_h))
+        sx = max(0, min(sw - 1, sx))
+        sy = max(0, min(sh - 1, sy))
+        try:
+            px = src[sy, sx]
+            if src.ndim == 3:
+                B, G, R = int(px[0]), int(px[1]), int(px[2])
+                import cv2
+                hsv = cv2.cvtColor(src[sy:sy+1, sx:sx+1],
+                                   cv2.COLOR_BGR2HSV)[0, 0]
+                H, S, V = int(hsv[0]), int(hsv[1]), int(hsv[2])
+                txt = (f"x={sx:4d} y={sy:4d}   "
+                       f"BGR=({B:3d},{G:3d},{R:3d})   "
+                       f"RGB=({R:3d},{G:3d},{B:3d})   "
+                       f"HSV=({H:3d},{S:3d},{V:3d})")
+            else:
+                gray = int(px)
+                txt = (f"x={sx:4d} y={sy:4d}   "
+                       f"gray={gray:3d}   "
+                       f"hex=#{gray:02x}{gray:02x}{gray:02x}")
+            readout.config(text=txt)
+        except Exception as e:
+            readout.config(text=f"(read err: {e})")
+
+    def _close_zoom(self, view_name=None):
+        """Close one or all zoom windows.
+        view_name=None closes every open zoom (used at app shutdown)."""
+        wins = getattr(self, "_zoom_wins", {}) or {}
+        targets = [view_name] if view_name is not None else list(wins.keys())
+        for vn in targets:
+            entry = wins.pop(vn, None)
+            if entry is not None and entry["win"].winfo_exists():
+                entry["win"].destroy()
         if self._zoom_win and self._zoom_win.winfo_exists():
-            self._zoom_win.destroy()
+            try:
+                self._zoom_win.destroy()
+            except Exception:
+                pass
         self._zoom_win = self._zoom_label = self._zoom_view = None
